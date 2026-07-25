@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  structure-and-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: engines/phaser-typescript/package-lock.json
+      - run: python3 -m unittest discover -s tests -v
+      - run: npm ci
+        working-directory: engines/phaser-typescript
+      - run: npm run build
+        working-directory: engines/phaser-typescript
+
+  native-code:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Native libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build pkg-config libasound2-dev \
+            libgl1-mesa-dev libx11-dev libxcursor-dev libxi-dev \
+            libxinerama-dev libxrandr-dev libxkbcommon-dev
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+          cache-dependency-path: engines/ebitengine-go/go.sum
+      - run: cargo fmt --check && cargo check && cargo test && cargo clippy -- -D warnings
+        working-directory: engines/macroquad-rust
+      - run: test -z "$(gofmt -l .)" && go test ./... && go vet ./... && go test -race ./...
+        working-directory: engines/ebitengine-go
+      - run: cmake -S . -B build -G Ninja -DKOFUN_FETCH_RAYLIB=ON
+        working-directory: engines/raylib-c
+      - run: cmake --build build
+        working-directory: engines/raylib-c
+
+  script-engines:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: sudo apt-get update && sudo apt-get install -y lua5.4 unzip
+      - name: Lua syntax
+        run: |
+          find engines/love2d-lua engines/defold-lua -type f \
+            \( -name '*.lua' -o -name '*.script' -o -name '*.gui_script' \) \
+            -print0 | xargs -0 -n1 luac -p
+      - name: Godot 4.7.1 headless smoke
+        run: |
+          curl --fail --location --retry 3 \
+            -o /tmp/godot.zip \
+            https://github.com/godotengine/godot/releases/download/4.7.1-stable/Godot_v4.7.1-stable_linux.x86_64.zip
+          unzip -q /tmp/godot.zip -d /tmp/godot
+          /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 \
+            --headless --path engines/godot-gdscript \
+            --script res://tests/smoke_test.gd
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+      - name: Defold 1.12.4 build
+        run: |
+          (cd engines/defold-lua && lua tests/runtime_smoke.lua)
+          curl --fail --location --retry 3 \
+            -o /tmp/bob.jar \
+            https://github.com/defold/defold/releases/download/1.12.4/bob.jar
+          echo "54ac57d9712fcd1e9de63f405803d159d88a2fbe940b8ef058ba503aa418fa18  /tmp/bob.jar" \
+            | sha256sum --check
+          java -jar /tmp/bob.jar --root engines/defold-lua clean build

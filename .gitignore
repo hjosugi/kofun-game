@@ -1,0 +1,13 @@
+.DS_Store
+.direnv/
+.envrc
+result
+result-*
+
+**/.godot/
+**/__pycache__/
+**/build/
+**/bob/
+**/node_modules/
+**/dist/
+**/target/

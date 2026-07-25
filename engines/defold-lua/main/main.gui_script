@@ -1,0 +1,711 @@
+local W, H = 960, 540
+local LEFT, RIGHT, BOTTOM, TOP = 28, 932, 38, 448
+
+local C = {
+	bg = vmath.vector4(0.027, 0.067, 0.122, 1),
+	panel = vmath.vector4(0.063, 0.149, 0.227, 1),
+	grid = vmath.vector4(0.08, 0.18, 0.27, 0.45),
+	cyan = vmath.vector4(0.282, 0.875, 0.949, 1),
+	pink = vmath.vector4(1, 0.31, 0.604, 1),
+	gold = vmath.vector4(1, 0.82, 0.4, 1),
+	white = vmath.vector4(0.918, 0.969, 1, 1),
+	muted = vmath.vector4(0.57, 0.68, 0.76, 1),
+	dark = vmath.vector4(0.035, 0.086, 0.13, 1),
+}
+
+local NAMES = {
+	"COURIER", "BREAKER", "TAP PATROL", "SKY DODGE",
+	"NEON DASH", "KOFUN ORBIT", "SNAKE"
+}
+local TAGS = {
+	"Collect 8 relics in 45 seconds",
+	"Break a 5 x 10 wall with 3 lives",
+	"Tag 12 signals in 30 seconds",
+	"Flap through 10 gates",
+	"Run the neon road for 30 seconds",
+	"Pulse enemies away and survive 30 seconds",
+	"Grow by eating 15 magatama",
+}
+
+local A = {
+	up = hash("up"), down = hash("down"), left = hash("left"), right = hash("right"),
+	action = hash("action"), enter = hash("enter"), escape = hash("escape"),
+	restart = hash("restart"), click = hash("click"), touch = hash("touch"),
+}
+local NUMBERS = {
+	[hash("game_1")] = 1, [hash("game_2")] = 2, [hash("game_3")] = 3,
+	[hash("game_4")] = 4, [hash("game_5")] = 5, [hash("game_6")] = 6,
+	[hash("game_7")] = 7,
+}
+
+local function vec(x, y)
+	return { x = x, y = y }
+end
+
+local function length(x, y)
+	return math.sqrt(x * x + y * y)
+end
+
+local function distance(a, b)
+	return length(a.x - b.x, a.y - b.y)
+end
+
+local function clamp(value, low, high)
+	return math.max(low, math.min(high, value))
+end
+
+local function point_in_rect(p, x, y, w, h)
+	return p.x >= x and p.x <= x + w and p.y >= y and p.y <= y + h
+end
+
+local function rects_overlap(ax, ay, aw, ah, bx, by, bw, bh)
+	return ax < bx + bw and ax + aw > bx and ay < by + bh and ay + ah > by
+end
+
+local function add_node(self, node)
+	self.draw_nodes[#self.draw_nodes + 1] = node
+	return node
+end
+
+local function box(self, x, y, w, h, color, rotation)
+	local node = add_node(self, gui.new_box_node(vmath.vector3(x, y, 0), vmath.vector3(w, h, 0)))
+	gui.set_color(node, color)
+	if rotation then
+		gui.set_rotation(node, vmath.quat_rotation_z(rotation))
+	end
+	return node
+end
+
+local function label(self, value, x, y, size, color, centered)
+	local node = add_node(self, gui.new_text_node(vmath.vector3(x, y, 0), tostring(value)))
+	gui.set_font(node, "font")
+	gui.set_color(node, color or C.white)
+	local scale = (size or 18) / 32
+	gui.set_scale(node, vmath.vector3(scale, scale, 1))
+	gui.set_pivot(node, centered and gui.PIVOT_CENTER or gui.PIVOT_W)
+	return node
+end
+
+local function clear_drawing(self)
+	for i = #self.draw_nodes, 1, -1 do
+		gui.delete_node(self.draw_nodes[i])
+	end
+	self.draw_nodes = {}
+end
+
+local function random_point(margin)
+	return vec(
+		LEFT + margin + math.random() * (RIGHT - LEFT - margin * 2),
+		BOTTOM + margin + math.random() * (TOP - BOTTOM - margin * 2)
+	)
+end
+
+local function random_distant_point(origin, margin, minimum_distance)
+	local candidate = random_point(margin)
+	for _ = 1, 24 do
+		if distance(candidate, origin) >= minimum_distance then return candidate end
+		candidate = random_point(margin)
+	end
+	return vec(
+		origin.x < (LEFT + RIGHT) / 2 and RIGHT - margin or LEFT + margin,
+		origin.y < (BOTTOM + TOP) / 2 and TOP - margin or BOTTOM + margin
+	)
+end
+
+local function finish(self, won, message)
+	if self.phase ~= "playing" then return end
+	self.phase = won and "won" or "lost"
+	self.message = message
+end
+
+local function show_menu(self)
+	self.phase = "menu"
+	self.game = 0
+	self.message = ""
+end
+
+local setup_game
+
+-- Game setup -----------------------------------------------------------------
+local function setup_courier(self)
+	self.player = vec(120, 245)
+	for i = 0, 7 do
+		self.objects[#self.objects + 1] = vec(210 + (i % 4) * 190, 105 + math.floor(i / 4) * 250)
+	end
+	for i = 0, 3 do
+		self.hazards[#self.hazards + 1] = {
+			x = 250 + i * 165, y = 210 + (i % 2) * 95,
+			vx = 0, vy = 0, speed = 78 + i * 5
+		}
+	end
+end
+
+local function setup_breaker(self)
+	self.player = vec(480, 65)
+	self.ball = vec(480, 105)
+	self.velocity = vec(245, 245)
+	self.lives = 3
+	for row = 0, 4 do
+		for col = 0, 9 do
+			self.objects[#self.objects + 1] = {
+				x = 91 + col * 79, y = 340 - row * 38, w = 70, h = 24, row = row
+			}
+		end
+	end
+end
+
+local function setup_tap(self)
+	self.target = random_point(70)
+	self.decoy = random_distant_point(self.target, 70, 180)
+end
+
+local function setup_sky(self)
+	self.player = vec(190, 245)
+	self.velocity = vec(0, 0)
+	for i = 0, 2 do
+		self.hazards[#self.hazards + 1] = {
+			x = 560 + i * 310, gap = 160 + (i % 3) * 72, scored = false
+		}
+	end
+end
+
+local function setup_dash(self)
+	self.player = vec(190, 72)
+	self.velocity = vec(0, 0)
+	self.spawn = 1.2
+end
+
+local function setup_orbit(self)
+	self.player = vec(480, 245)
+	self.spawn = 0.3
+	self.pulse = 0
+	self.flash = 0
+end
+
+local function setup_snake(self)
+	self.snake = { vec(11, 7), vec(10, 7), vec(9, 7) }
+	self.direction = vec(1, 0)
+	self.next_direction = vec(1, 0)
+	self.tick = 0
+	self.food = vec(20, 7)
+end
+
+setup_game = function(self, game)
+	self.game = game
+	self.phase = "playing"
+	self.message = ""
+	self.elapsed = 0
+	self.score = 0
+	self.objects = {}
+	self.hazards = {}
+	self.velocity = vec(0, 0)
+	if game == 1 then setup_courier(self)
+	elseif game == 2 then setup_breaker(self)
+	elseif game == 3 then setup_tap(self)
+	elseif game == 4 then setup_sky(self)
+	elseif game == 5 then setup_dash(self)
+	elseif game == 6 then setup_orbit(self)
+	elseif game == 7 then setup_snake(self)
+	end
+end
+
+local function movement(self)
+	local x = (self.keys[A.right] and 1 or 0) - (self.keys[A.left] and 1 or 0)
+	local y = (self.keys[A.up] and 1 or 0) - (self.keys[A.down] and 1 or 0)
+	local n = length(x, y)
+	if n > 0 then return x / n, y / n end
+	return 0, 0
+end
+
+-- Game updates ---------------------------------------------------------------
+local function update_courier(self, dt)
+	local mx, my = movement(self)
+	self.player.x = clamp(self.player.x + mx * 235 * dt, LEFT + 14, RIGHT - 14)
+	self.player.y = clamp(self.player.y + my * 235 * dt, BOTTOM + 14, TOP - 14)
+	for _, enemy in ipairs(self.hazards) do
+		local dx, dy = self.player.x - enemy.x, self.player.y - enemy.y
+		local d = math.max(0.001, length(dx, dy))
+		local tx, ty = dx / d * enemy.speed, dy / d * enemy.speed
+		local blend = math.min(1, dt * 3.5)
+		enemy.vx = enemy.vx + (tx - enemy.vx) * blend
+		enemy.vy = enemy.vy + (ty - enemy.vy) * blend
+		enemy.x = enemy.x + enemy.vx * dt
+		enemy.y = enemy.y + enemy.vy * dt
+		if distance(self.player, enemy) < 27 then
+			finish(self, false, "A guardian caught the courier")
+			return
+		end
+	end
+	for i = #self.objects, 1, -1 do
+		if distance(self.player, self.objects[i]) < 27 then
+			table.remove(self.objects, i)
+			self.score = self.score + 1
+		end
+	end
+	if self.score == 8 then finish(self, true, "All eight relics delivered!")
+	elseif self.elapsed >= 45 then finish(self, false, "The 45 second route closed") end
+end
+
+local function update_breaker(self, dt)
+	local mx = movement(self)
+	self.player.x = clamp(self.player.x + mx * 390 * dt, 93, 867)
+	self.ball.x = self.ball.x + self.velocity.x * dt
+	self.ball.y = self.ball.y + self.velocity.y * dt
+	if self.ball.x < 43 then self.ball.x = 43 self.velocity.x = math.abs(self.velocity.x)
+	elseif self.ball.x > 917 then self.ball.x = 917 self.velocity.x = -math.abs(self.velocity.x) end
+	if self.ball.y > 433 then self.ball.y = 433 self.velocity.y = -math.abs(self.velocity.y) end
+	if self.velocity.y < 0 and point_in_rect(self.ball, self.player.x - 72, 55, 144, 26) then
+		self.ball.y = 82
+		self.velocity.y = math.abs(self.velocity.y)
+		self.velocity.x = self.velocity.x + (self.ball.x - self.player.x) * 2.2
+		local speed = math.min(410, length(self.velocity.x, self.velocity.y) + 8)
+		local old = length(self.velocity.x, self.velocity.y)
+		self.velocity.x, self.velocity.y = self.velocity.x / old * speed, self.velocity.y / old * speed
+	end
+	for i = #self.objects, 1, -1 do
+		local b = self.objects[i]
+		if point_in_rect(self.ball, b.x - 7, b.y - 7, b.w + 14, b.h + 14) then
+			table.remove(self.objects, i)
+			self.velocity.y = -self.velocity.y
+			self.score = self.score + 1
+			break
+		end
+	end
+	if #self.objects == 0 then finish(self, true, "The whole wall is history")
+	elseif self.ball.y < 0 then
+		self.lives = self.lives - 1
+		if self.lives <= 0 then finish(self, false, "No balls left")
+		else
+			self.ball = vec(self.player.x, 105)
+			self.velocity = vec(self.lives % 2 == 0 and -230 or 230, 250)
+		end
+	end
+end
+
+local function update_tap(self)
+	if self.score >= 12 then finish(self, true, "Twelve true signals confirmed")
+	elseif self.elapsed >= 30 then finish(self, false, "Patrol ended with " .. self.score .. " / 12") end
+end
+
+local function update_sky(self, dt)
+	self.velocity.y = self.velocity.y - 820 * dt
+	self.player.y = self.player.y + self.velocity.y * dt
+	for _, gate in ipairs(self.hazards) do
+		gate.x = gate.x - 185 * dt
+		if not gate.scored and gate.x + 34 < self.player.x then
+			gate.scored = true
+			self.score = self.score + 1
+		end
+		if gate.x < -50 then
+			gate.x = gate.x + 930
+			gate.gap = 115 + math.random() * 205
+			gate.scored = false
+		end
+		if math.abs(gate.x - self.player.x) < 42 and math.abs(self.player.y - gate.gap) > 54 then
+			finish(self, false, "The glider clipped a gate")
+			return
+		end
+	end
+	if self.player.y < BOTTOM + 14 or self.player.y > TOP - 14 then
+		finish(self, false, "The glider left the air lane")
+		return
+	elseif self.score >= 10 then finish(self, true, "Ten gates cleared") end
+end
+
+local function dash_jump(self)
+	if self.player.y <= 73 then self.velocity.y = 430 end
+end
+
+local function pointer_press(self, x, y)
+	if self.phase ~= "playing" then return end
+	if self.game == 3 then
+		local point = vec(x, y)
+		if distance(point, self.target) < 37 then
+			self.score = self.score + 1
+			self.target = random_point(65)
+			self.decoy = random_distant_point(self.target, 65, 180)
+		elseif distance(point, self.decoy) < 43 then
+			self.elapsed = self.elapsed + 3
+			self.decoy = random_distant_point(self.target, 65, 180)
+		end
+	elseif self.game == 4 then
+		self.velocity.y = 335
+	elseif self.game == 5 then
+		dash_jump(self)
+	end
+end
+
+local function update_dash(self, dt)
+	self.velocity.y = self.velocity.y - 1050 * dt
+	self.player.y = math.max(72, self.player.y + self.velocity.y * dt)
+	if self.player.y <= 72 then self.velocity.y = 0 end
+	self.spawn = self.spawn - dt
+	if self.spawn <= 0 then
+		self.hazards[#self.hazards + 1] = { x = 970, h = 35 + math.random() * 41 }
+		self.spawn = 1.05 + math.random() * 0.6 - math.min(self.elapsed * 0.008, 0.25)
+	end
+	local speed = 260 + self.elapsed * 5
+	for i = #self.hazards, 1, -1 do
+		local obstacle = self.hazards[i]
+		obstacle.x = obstacle.x - speed * dt
+		if obstacle.x < -30 then
+			table.remove(self.hazards, i)
+			self.score = self.score + 1
+		elseif rects_overlap(self.player.x - 16, self.player.y - 24, 32, 48,
+			obstacle.x, 52, 30, obstacle.h) then
+			finish(self, false, "The runner hit a neon marker")
+		end
+	end
+	if self.elapsed >= 30 then finish(self, true, "Thirty seconds on the neon road") end
+end
+
+local function orbit_pulse(self)
+	if self.pulse > 0 then return end
+	self.pulse = 1.15
+	self.flash = 0.22
+	for _, enemy in ipairs(self.hazards) do
+		local dx, dy = enemy.x - self.player.x, enemy.y - self.player.y
+		local d = length(dx, dy)
+		if d < 150 and d > 0 then
+			enemy.vx, enemy.vy = dx / d * 410, dy / d * 410
+			enemy.stun = 0.55
+			self.score = self.score + 1
+		end
+	end
+end
+
+local function update_orbit(self, dt)
+	local mx, my = movement(self)
+	self.player.x = clamp(self.player.x + mx * 220 * dt, LEFT + 18, RIGHT - 18)
+	self.player.y = clamp(self.player.y + my * 220 * dt, BOTTOM + 18, TOP - 18)
+	self.spawn, self.pulse, self.flash =
+		self.spawn - dt, math.max(0, self.pulse - dt), math.max(0, self.flash - dt)
+	if self.spawn <= 0 then
+		local side = math.random(1, 4)
+		local enemy = { vx = 0, vy = 0, stun = 0 }
+		if side == 1 then enemy.x, enemy.y = 30, BOTTOM + math.random() * (TOP - BOTTOM)
+		elseif side == 2 then enemy.x, enemy.y = 930, BOTTOM + math.random() * (TOP - BOTTOM)
+		elseif side == 3 then enemy.x, enemy.y = LEFT + math.random() * (RIGHT - LEFT), BOTTOM
+		else enemy.x, enemy.y = LEFT + math.random() * (RIGHT - LEFT), TOP end
+		self.hazards[#self.hazards + 1] = enemy
+		self.spawn = math.max(0.42, 1.15 - self.elapsed * 0.018)
+	end
+	for i = #self.hazards, 1, -1 do
+		local enemy = self.hazards[i]
+		enemy.stun = math.max(0, enemy.stun - dt)
+		if enemy.stun <= 0 then
+			local dx, dy = self.player.x - enemy.x, self.player.y - enemy.y
+			local d = math.max(0.001, length(dx, dy))
+			local tx, ty = dx / d * (80 + self.elapsed * 2.1), dy / d * (80 + self.elapsed * 2.1)
+			local blend = math.min(1, dt * 4)
+			enemy.vx, enemy.vy = enemy.vx + (tx - enemy.vx) * blend, enemy.vy + (ty - enemy.vy) * blend
+		else
+			local damping = 0.18 ^ dt
+			enemy.vx, enemy.vy = enemy.vx * damping, enemy.vy * damping
+		end
+		enemy.x, enemy.y = enemy.x + enemy.vx * dt, enemy.y + enemy.vy * dt
+		if distance(self.player, enemy) < 22 then
+			finish(self, false, "The orbit was breached")
+			return
+		elseif enemy.x < -90 or enemy.x > 1050 or enemy.y < -50 or enemy.y > 590 then
+			table.remove(self.hazards, i)
+		end
+	end
+	if self.elapsed >= 30 then finish(self, true, "Orbit held for thirty seconds") end
+end
+
+local function place_food(self)
+	for _ = 1, 100 do
+		local candidate = vec(math.random(0, 27), math.random(0, 14))
+		local free = true
+		for _, part in ipairs(self.snake) do
+			if part.x == candidate.x and part.y == candidate.y then free = false break end
+		end
+		if free then self.food = candidate return end
+	end
+end
+
+local function snake_turn(self, x, y)
+	if x + self.direction.x ~= 0 or y + self.direction.y ~= 0 then
+		self.next_direction = vec(x, y)
+	end
+end
+
+local function update_snake(self, dt)
+	self.tick = self.tick + dt
+	if self.tick < 0.115 then return end
+	self.tick = self.tick - 0.115
+	self.direction = vec(self.next_direction.x, self.next_direction.y)
+	local head = vec(self.snake[1].x + self.direction.x, self.snake[1].y + self.direction.y)
+	local hit = head.x < 0 or head.x >= 28 or head.y < 0 or head.y >= 15
+	local eating = head.x == self.food.x and head.y == self.food.y
+	local collision_length = eating and #self.snake or #self.snake - 1
+	for i = 1, collision_length do
+		local part = self.snake[i]
+		if part.x == head.x and part.y == head.y then hit = true break end
+	end
+	if hit then finish(self, false, "The trail folded into danger") return end
+	table.insert(self.snake, 1, head)
+	if eating then
+		self.score = self.score + 1
+		place_food(self)
+	else
+		table.remove(self.snake)
+	end
+	if self.score >= 15 then finish(self, true, "Fifteen magatama gathered") end
+end
+
+-- Drawing --------------------------------------------------------------------
+local function draw_background(self)
+	box(self, W / 2, H / 2, W, H, C.bg)
+	for x = 0, W, 48 do box(self, x, H / 2, 1, H, C.grid) end
+	for y = 0, H, 48 do box(self, W / 2, y, W, 1, C.grid) end
+end
+
+local function draw_menu(self)
+	label(self, "KOFUN // SEVEN", 480, 492, 34, C.cyan, true)
+	label(self, "Seven small games. One lightweight Defold build.", 480, 464, 16, C.muted, true)
+	for i = 1, 7 do
+		local y = 422 - (i - 1) * 51
+		local selected = i == self.menu_index
+		box(self, 480, y, 650, 42, selected and vmath.vector4(0.09, 0.23, 0.31, 1) or C.dark)
+		if selected then box(self, 158.5, y, 7, 42, C.pink) end
+		label(self, i, 181, y, 18, C.gold, false)
+		label(self, NAMES[i], 221, y, 21, selected and C.white or C.muted, false)
+		label(self, TAGS[i], 420, y, 15, C.muted, false)
+	end
+	label(self, "UP / DOWN or W / S  SELECT     ENTER / 1-7  START", 480, 28, 16, C.gold, true)
+end
+
+local function draw_header(self)
+	label(self, self.game .. "  " .. NAMES[self.game], 30, 507, 27, C.cyan, false)
+	label(self, TAGS[self.game], 30, 478, 15, C.muted, false)
+	label(self, "ESC MENU   -   R RESTART", 930, 505, 15, C.muted, true)
+	box(self, 480, (BOTTOM + TOP) / 2, RIGHT - LEFT, TOP - BOTTOM, C.panel)
+	box(self, 480, BOTTOM, RIGHT - LEFT, 2, C.grid)
+	box(self, 480, TOP, RIGHT - LEFT, 2, C.grid)
+end
+
+local function draw_courier(self)
+	for _, relic in ipairs(self.objects) do
+		box(self, relic.x, relic.y, 19, 19, C.gold, math.pi / 4)
+		box(self, relic.x, relic.y, 7, 7, C.bg, math.pi / 4)
+	end
+	for _, enemy in ipairs(self.hazards) do
+		box(self, enemy.x, enemy.y, 25, 25, C.pink, math.pi / 4)
+		box(self, enemy.x, enemy.y, 15, 3, C.white)
+	end
+	box(self, self.player.x, self.player.y, 25, 25, C.cyan, math.pi / 4)
+	box(self, self.player.x, self.player.y, 8, 8, C.white, math.pi / 4)
+	label(self, "RELICS " .. self.score .. " / 8", 45, 424, 18, C.gold, false)
+	label(self, string.format("TIME %02d", math.floor(math.max(0, 45 - self.elapsed))), 820, 424, 18, C.white, false)
+	label(self, "MOVE  WASD / ARROWS", 480, 17, 15, C.muted, true)
+end
+
+local function draw_breaker(self)
+	local colors = { C.pink, vmath.vector4(1, .53, .37, 1), C.gold, C.cyan, vmath.vector4(.59, .46, .98, 1) }
+	for _, brick in ipairs(self.objects) do
+		box(self, brick.x + brick.w / 2, brick.y + brick.h / 2, brick.w, brick.h, colors[brick.row + 1])
+	end
+	box(self, self.player.x, 65, 130, 14, C.cyan)
+	box(self, self.ball.x, self.ball.y, 13, 13, C.white, math.pi / 4)
+	label(self, "LIVES " .. self.lives, 45, 424, 18, C.gold, false)
+	label(self, "BRICKS " .. self.score .. " / 50", 805, 424, 18, C.white, false)
+	label(self, "MOVE PADDLE  A D / LEFT RIGHT", 480, 17, 15, C.muted, true)
+end
+
+local function draw_tap(self)
+	local pulse = 58 + math.sin(self.elapsed * 8) * 7
+	local faint_cyan = vmath.vector4(C.cyan.x, C.cyan.y, C.cyan.z, .18)
+	local faint_pink = vmath.vector4(C.pink.x, C.pink.y, C.pink.z, .22)
+	box(self, self.target.x, self.target.y, pulse, pulse, faint_cyan, math.pi / 4)
+	box(self, self.target.x, self.target.y, 38, 38, C.cyan, math.pi / 4)
+	box(self, self.target.x, self.target.y, 12, 12, C.white, math.pi / 4)
+	box(self, self.decoy.x, self.decoy.y, 54, 54, faint_pink, math.pi / 4)
+	box(self, self.decoy.x, self.decoy.y, 34, 34, C.pink, math.pi / 4)
+	box(self, self.decoy.x, self.decoy.y, 24, 4, C.bg, math.pi / 4)
+	box(self, self.decoy.x, self.decoy.y, 24, 4, C.bg, -math.pi / 4)
+	label(self, "TARGETS " .. self.score .. " / 12", 45, 424, 18, C.gold, false)
+	label(self, string.format("TIME %02d", math.floor(math.max(0, 30 - self.elapsed))), 820, 424, 18, C.white, false)
+	label(self, "CLICK / TAP CYAN - DECOY COSTS 3 SECONDS", 480, 17, 15, C.muted, true)
+end
+
+local function draw_sky(self)
+	for _, gate in ipairs(self.hazards) do
+		local low_h = gate.gap - 68 - BOTTOM
+		local high_h = TOP - gate.gap - 68
+		if low_h > 0 then box(self, gate.x, BOTTOM + low_h / 2, 44, low_h, C.pink) end
+		if high_h > 0 then box(self, gate.x, gate.gap + 68 + high_h / 2, 44, high_h, C.pink) end
+		box(self, gate.x, gate.gap - 74, 58, 12, C.gold)
+		box(self, gate.x, gate.gap + 74, 58, 12, C.gold)
+	end
+	box(self, self.player.x, self.player.y, 32, 23, C.cyan, math.pi / 4)
+	box(self, self.player.x - 13, self.player.y, 17, 5, C.gold)
+	label(self, "GATES " .. self.score .. " / 10", 45, 424, 18, C.gold, false)
+	label(self, "FLAP  SPACE / CLICK", 480, 17, 15, C.muted, true)
+end
+
+local function draw_dash(self)
+	box(self, 480, 51, 904, 3, C.cyan)
+	for i = 0, 10 do
+		local x = ((i * 110 - self.elapsed * 260) % 1100)
+		box(self, x, 36, 42, 3, C.grid)
+	end
+	for _, obstacle in ipairs(self.hazards) do
+		box(self, obstacle.x + 15, 52 + obstacle.h / 2, 30, obstacle.h, C.pink)
+	end
+	box(self, self.player.x, self.player.y, 30, 48, C.cyan)
+	box(self, self.player.x + 18, self.player.y + 4, 12, 8, C.gold)
+	label(self, string.format("TIME %04.1f / 30", self.elapsed), 45, 424, 18, C.gold, false)
+	label(self, "CLEARED " .. self.score, 815, 424, 18, C.white, false)
+	label(self, "JUMP  SPACE / W / UP / CLICK / TAP", 480, 17, 15, C.muted, true)
+end
+
+local function draw_orbit(self)
+	if self.flash > 0 then
+		local radius = 150 * (1 - self.flash / .22)
+		local faint = vmath.vector4(C.cyan.x, C.cyan.y, C.cyan.z, .35)
+		box(self, self.player.x, self.player.y, radius * 1.4, radius * 1.4, faint, math.pi / 4)
+	end
+	for _, enemy in ipairs(self.hazards) do
+		box(self, enemy.x, enemy.y, 23, 23, C.pink, math.pi / 4)
+		box(self, enemy.x, enemy.y, 7, 7, C.white, math.pi / 4)
+	end
+	box(self, self.player.x, self.player.y, 27, 27, C.cyan, math.pi / 4)
+	box(self, self.player.x, self.player.y, 9, 9, C.white, math.pi / 4)
+	label(self, string.format("SURVIVE %04.1f / 30", self.elapsed), 45, 424, 18, C.gold, false)
+	label(self, "PULSE " .. (self.pulse <= 0 and "READY" or string.format("%.1f", self.pulse)),
+		805, 424, 18, self.pulse <= 0 and C.cyan or C.white, false)
+	label(self, "MOVE WASD / ARROWS - SPACE PULSE", 480, 17, 15, C.muted, true)
+end
+
+local function draw_snake(self)
+	local ox, oy, cell = 144, 63, 24
+	box(self, ox + 28 * cell / 2, oy + 15 * cell / 2, 28 * cell, 15 * cell, C.dark)
+	for i, part in ipairs(self.snake) do
+		box(self, ox + part.x * cell + cell / 2, oy + part.y * cell + cell / 2,
+			cell - 4, cell - 4, i == 1 and C.cyan or vmath.vector4(.14, .55, .64, 1))
+	end
+	box(self, ox + self.food.x * cell + cell / 2, oy + self.food.y * cell + cell / 2,
+		16, 16, C.gold, math.pi / 4)
+	box(self, ox + self.food.x * cell + cell / 2, oy + self.food.y * cell + cell / 2,
+		5, 5, C.bg, math.pi / 4)
+	label(self, "FOOD " .. self.score .. " / 15", 45, 424, 18, C.gold, false)
+	label(self, "STEER  WASD / ARROWS", 480, 17, 15, C.muted, true)
+end
+
+local function draw_result(self)
+	box(self, 480, 270, 580, 170, vmath.vector4(.02, .055, .09, .96))
+	local color = self.phase == "won" and C.cyan or C.pink
+	box(self, 480, 354, 580, 3, color)
+	box(self, 480, 186, 580, 3, color)
+	label(self, self.phase == "won" and "MISSION COMPLETE" or "MISSION FAILED", 480, 309, 30, color, true)
+	label(self, self.message, 480, 266, 19, C.white, true)
+	label(self, "ENTER / R  RETRY     ESC  MENU", 480, 221, 16, C.gold, true)
+end
+
+local function redraw(self)
+	clear_drawing(self)
+	draw_background(self)
+	if self.phase == "menu" then
+		draw_menu(self)
+	else
+		draw_header(self)
+		if self.game == 1 then draw_courier(self)
+		elseif self.game == 2 then draw_breaker(self)
+		elseif self.game == 3 then draw_tap(self)
+		elseif self.game == 4 then draw_sky(self)
+		elseif self.game == 5 then draw_dash(self)
+		elseif self.game == 6 then draw_orbit(self)
+		elseif self.game == 7 then draw_snake(self)
+		end
+		if self.phase == "won" or self.phase == "lost" then draw_result(self) end
+	end
+end
+
+function init(self)
+	math.randomseed(1263486555)
+	msg.post(".", "acquire_input_focus")
+	self.draw_nodes = {}
+	self.keys = {}
+	self.menu_index = 1
+	self.phase = "menu"
+	self.game = 0
+	self.message = ""
+	self.elapsed = 0
+	self.score = 0
+	self.objects = {}
+	self.hazards = {}
+	redraw(self)
+end
+
+function update(self, dt)
+	if self.phase == "playing" then
+		self.elapsed = self.elapsed + dt
+		if self.game == 1 then update_courier(self, dt)
+		elseif self.game == 2 then update_breaker(self, dt)
+		elseif self.game == 3 then update_tap(self)
+		elseif self.game == 4 then update_sky(self, dt)
+		elseif self.game == 5 then update_dash(self, dt)
+		elseif self.game == 6 then update_orbit(self, dt)
+		elseif self.game == 7 then update_snake(self, dt)
+		end
+	end
+	redraw(self)
+end
+
+function on_input(self, action_id, action)
+	if action_id == A.up or action_id == A.down or action_id == A.left or action_id == A.right then
+		if action.pressed then self.keys[action_id] = true end
+		if action.released then self.keys[action_id] = false end
+	end
+	if action_id == A.touch and self.phase == "playing" and
+		(self.game == 3 or self.game == 4 or self.game == 5) then
+		for _, touch in ipairs(action.touch or {}) do
+			if touch.pressed then pointer_press(self, touch.x, touch.y) break end
+		end
+		return true
+	end
+	if not action.pressed then return end
+
+	if action_id == A.escape then
+		show_menu(self)
+		return true
+	end
+	if self.phase == "menu" then
+		if action_id == A.up then self.menu_index = ((self.menu_index - 2) % 7) + 1
+		elseif action_id == A.down then self.menu_index = (self.menu_index % 7) + 1
+		elseif action_id == A.enter or action_id == A.action then setup_game(self, self.menu_index)
+		elseif NUMBERS[action_id] then setup_game(self, NUMBERS[action_id]) end
+		return true
+	end
+	if action_id == A.restart then
+		setup_game(self, self.game)
+		return true
+	end
+	if (self.phase == "won" or self.phase == "lost") and action_id == A.enter then
+		setup_game(self, self.game)
+		return true
+	end
+	if self.phase ~= "playing" then return true end
+
+	if action_id == A.click then
+		pointer_press(self, action.x, action.y)
+	elseif self.game == 4 and (action_id == A.action or action_id == A.up) then
+		self.velocity.y = 335
+	elseif self.game == 5 and (action_id == A.action or action_id == A.up) then
+		dash_jump(self)
+	elseif self.game == 6 and action_id == A.action then
+		orbit_pulse(self)
+	elseif self.game == 7 then
+		if action_id == A.up then snake_turn(self, 0, 1)
+		elseif action_id == A.down then snake_turn(self, 0, -1)
+		elseif action_id == A.left then snake_turn(self, -1, 0)
+		elseif action_id == A.right then snake_turn(self, 1, 0) end
+	end
+	return true
+end
+
+function final(self)
+	clear_drawing(self)
+end

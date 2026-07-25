@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Kofun Game Matrixの7ゲーム×7エンジン、49実装一覧"
+    />
+    <meta name="theme-color" content="#090713" />
+    <title>49実装 — Kofun Game Matrix</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">KG</span><span>Kofun Game Matrix</span>
+      </a>
+      <nav aria-label="Main navigation">
+        <a aria-current="page" href="matrix.html">49実装</a>
+        <a href="research.html">比較調査</a>
+        <a class="nav-play" href="play/">PLAY</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="page-hero matrix-hero">
+        <p class="eyebrow"><span></span> IMPLEMENTATION MATRIX</p>
+        <h1>7 × 7。<br /><em>空欄なし。</em></h1>
+        <p>
+          どのengineもデモ1本だけではありません。全7ジャンルにmenu、HUD、
+          win/lose、restartを実装しています。
+        </p>
+      </section>
+
+      <section class="section prose-section">
+        <div class="table-wrap matrix-wrap">
+          <table class="matrix-table">
+            <thead>
+              <tr>
+                <th>GAME \ ENGINE</th>
+                <th>Godot</th><th>raylib</th><th>Defold</th><th>LÖVE</th>
+                <th>Phaser</th><th>Macroquad</th><th>Ebitengine</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><th>Courier</th><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+              <tr><th>Breaker</th><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+              <tr><th>Tap Patrol</th><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+              <tr><th>Sky Dodge</th><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+              <tr><th>Neon Dash</th><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+              <tr><th>Kofun Orbit</th><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+              <tr><th>Kofun Snake</th><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+            </tbody>
+            <tfoot>
+              <tr><th>TOTAL</th><td>7</td><td>7</td><td>7</td><td>7</td><td>7</td><td>7</td><td>7</td></tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div class="implementation-grid">
+          <article>
+            <span>GDSCRIPT</span><h2>Godot 4</h2>
+            <p>Node2Dのcustom drawと単一state machine。Compatibility renderer。</p>
+            <a href="https://github.com/hjosugi/kofun-game/tree/main/engines/godot-gdscript">source →</a>
+          </article>
+          <article>
+            <span>C11</span><h2>raylib 6</h2>
+            <p>明示的なupdate/draw loop。CMakeとsystem raylibでbuild。</p>
+            <a href="https://github.com/hjosugi/kofun-game/tree/main/engines/raylib-c">source →</a>
+          </article>
+          <article>
+            <span>LUA</span><h2>Defold</h2>
+            <p>GUI nodesとGUI script。Bobによるheadless buildにも対応。</p>
+            <a href="https://github.com/hjosugi/kofun-game/tree/main/engines/defold-lua">source →</a>
+          </article>
+          <article>
+            <span>LUA</span><h2>LÖVE</h2>
+            <p>load/update/draw callbackとimmediate mode drawing。</p>
+            <a href="https://github.com/hjosugi/kofun-game/tree/main/engines/love2d-lua">source →</a>
+          </article>
+          <article>
+            <span>TYPESCRIPT</span><h2>Phaser 3.90</h2>
+            <p>1 Scene、Canvas renderer。GitHub Pagesのplayable build。</p>
+            <a href="play/">play →</a>
+          </article>
+          <article>
+            <span>RUST</span><h2>Macroquad</h2>
+            <p>enum stateとasync main loop。cargo test/clippyで検証。</p>
+            <a href="https://github.com/hjosugi/kofun-game/tree/main/engines/macroquad-rust">source →</a>
+          </article>
+          <article>
+            <span>GO</span><h2>Ebitengine</h2>
+            <p>Update/Draw/Layout interface。固定TPSとGo test。</p>
+            <a href="https://github.com/hjosugi/kofun-game/tree/main/engines/ebitengine-go">source →</a>
+          </article>
+        </div>
+      </section>
+
+      <section class="section test-section">
+        <div>
+          <p class="eyebrow light"><span></span> QUALITY GATES</p>
+          <h2>「ファイルがある」ではなく、動くことを検査。</h2>
+        </div>
+        <ul>
+          <li><b>Web</b><span>TypeScript strict + Vite production build</span></li>
+          <li><b>Native</b><span>C compile · cargo clippy · go vet/test</span></li>
+          <li><b>Script</b><span>Godot headless · Defold Bob · Lua parse/smoke</span></li>
+          <li><b>UX</b><span>ASCII-safe HUD · 960×540 · software rendering path</span></li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      <div><span class="brand-mark">KG</span><p>Kofun Game Matrix · 49 implementations</p></div>
+      <div class="footer-links">
+        <a href="https://github.com/hjosugi/kofun-game">GitHub</a>
+        <a href="research.html">Research</a>
+        <a href="play/">Play</a>
+      </div>
+    </footer>
+  </body>
+</html>

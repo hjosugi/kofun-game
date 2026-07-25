@@ -1,0 +1,6 @@
+script: "/main/main.gui_script"
+fonts {
+  name: "font"
+  font: "/builtins/fonts/default.font"
+}
+background_color { x: 0.027 y: 0.067 z: 0.122 w: 1.0 }

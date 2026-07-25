@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="2026年7月時点の軽量ゲームエンジン7種の実装比較"
+    />
+    <meta name="theme-color" content="#090713" />
+    <title>比較調査 — Kofun Game Matrix</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="index.html">
+        <span class="brand-mark">KG</span><span>Kofun Game Matrix</span>
+      </a>
+      <nav aria-label="Main navigation">
+        <a href="matrix.html">49実装</a>
+        <a aria-current="page" href="research.html">比較調査</a>
+        <a class="nav-play" href="play/">PLAY</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="page-hero research-hero">
+        <p class="eyebrow"><span></span> RESEARCH · 2026-07-25</p>
+        <h1>軽量ゲームエンジン、<br /><em>実装して</em>比較。</h1>
+        <p>
+          公式仕様を読むだけでなく、7ジャンルを全engineへ移植。
+          「どれが一番」ではなく、目的ごとの最短距離をまとめます。
+        </p>
+      </section>
+
+      <section class="section prose-section">
+        <div class="callout">
+          <b>結論</b>
+          <p>
+            初めて1本完成させるならGodot。最小runtimeとCを求めるならraylib。
+            product志向のLuaならDefold、自由なLua 2DならLÖVE。
+            WebならPhaser、RustならMacroquad、GoならEbitengineが明快です。
+          </p>
+        </div>
+
+        <div class="section-heading compact">
+          <div>
+            <p class="eyebrow"><span></span> CURRENT BASELINE</p>
+            <h2>検証対象</h2>
+          </div>
+          <p>stable releaseを優先。versionは2026-07-25時点。</p>
+        </div>
+
+        <div class="table-wrap">
+          <table class="research-table">
+            <thead>
+              <tr><th>engine</th><th>version</th><th>language</th><th>type</th><th>主な強み</th></tr>
+            </thead>
+            <tbody>
+              <tr id="godot-gdscript"><td><b>Godot</b></td><td>4.7.1</td><td>GDScript</td><td>統合engine</td><td>editorと2D機能の完成度</td></tr>
+              <tr id="raylib-c"><td><b>raylib</b></td><td>6.0</td><td>C11</td><td>library</td><td>小ささと制御性</td></tr>
+              <tr id="defold-lua"><td><b>Defold</b></td><td>1.12.4</td><td>Lua</td><td>統合engine</td><td>小型runtimeと配布先</td></tr>
+              <tr id="love2d-lua"><td><b>LÖVE</b></td><td>11.5</td><td>Lua</td><td>framework</td><td>2D prototypeの速さ</td></tr>
+              <tr id="phaser-typescript"><td><b>Phaser</b></td><td>3.90.0</td><td>TypeScript</td><td>Web framework</td><td>URLで即共有</td></tr>
+              <tr id="macroquad-rust"><td><b>Macroquad</b></td><td>0.4.15</td><td>Rust</td><td>framework</td><td>Rustで軽い2D/Web</td></tr>
+              <tr id="ebitengine-go"><td><b>Ebitengine</b></td><td>2.9.5</td><td>Go</td><td>framework</td><td>simpleなAPIとGo toolchain</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section-heading compact">
+          <div>
+            <p class="eyebrow"><span></span> SCORECARD</p>
+            <h2>用途別評価</h2>
+          </div>
+          <p>5が最も適する。今回の2D matrix実装での相対評価。</p>
+        </div>
+
+        <div class="table-wrap">
+          <table class="score-table">
+            <thead>
+              <tr>
+                <th>engine</th><th>低spec</th><th>初学者</th><th>Web</th>
+                <th>tooling</th><th>制御性</th><th>推奨用途</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Godot</td><td data-score="4">4</td><td data-score="5">5</td><td data-score="4">4</td><td data-score="5">5</td><td data-score="3">3</td><td>完成優先</td></tr>
+              <tr><td>raylib</td><td data-score="5">5</td><td data-score="3">3</td><td data-score="3">3</td><td data-score="2">2</td><td data-score="5">5</td><td>最低負荷・学習</td></tr>
+              <tr><td>Defold</td><td data-score="5">5</td><td data-score="4">4</td><td data-score="5">5</td><td data-score="4">4</td><td data-score="3">3</td><td>商用2D/mobile</td></tr>
+              <tr><td>LÖVE</td><td data-score="5">5</td><td data-score="4">4</td><td data-score="1">1</td><td data-score="2">2</td><td data-score="4">4</td><td>Lua 2D</td></tr>
+              <tr><td>Phaser</td><td data-score="4">4</td><td data-score="4">4</td><td data-score="5">5</td><td data-score="4">4</td><td data-score="3">3</td><td>Web game</td></tr>
+              <tr><td>Macroquad</td><td data-score="5">5</td><td data-score="3">3</td><td data-score="4">4</td><td data-score="4">4</td><td data-score="4">4</td><td>軽量Rust</td></tr>
+              <tr><td>Ebitengine</td><td data-score="5">5</td><td data-score="4">4</td><td data-score="4">4</td><td data-score="5">5</td><td data-score="4">4</td><td>Go 2D</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="fine-print">
+          Scoreは公式benchmarkではなく、本repoの共通仕様を実装した際のAPI量、
+          build手順、editor機能、配布経路から判断した実用上の評価です。
+        </p>
+      </section>
+
+      <section class="section engine-notes">
+        <article>
+          <span>01</span>
+          <div>
+            <h2>Godot — editor込みで最短</h2>
+            <p>
+              Scene、input、draw、exportを1つのeditorに集約。今回のような小規模2Dは
+              Compatibility rendererで十分です。公式要件ではsimpleなnative exportは
+              2GB RAM、CompatibilityはOpenGL 3.3またはWindowsのD3D11がbaseline。
+              GPUなしのremote環境ではheadless testとPhaser版を併用します。
+            </p>
+          </div>
+        </article>
+        <article>
+          <span>02</span>
+          <div>
+            <h2>raylib — 少ないlayer、最大の見通し</h2>
+            <p>
+              main loopをそのまま書くため、update/draw/collisionの関係が最も明快。
+              6.0ではsoftware rendererも追加されました。一方でscene editorやasset
+              pipelineは自分で用意する必要があります。
+            </p>
+          </div>
+        </article>
+        <article>
+          <span>03</span>
+          <div>
+            <h2>Defold / LÖVE — 同じLua、違う思想</h2>
+            <p>
+              Defoldはeditor、component、bundleまで揃うproduct寄り。LÖVEはcallbackと
+              moduleから自由に組むframework寄りです。今回はDefold GUI nodesと
+              LÖVE immediate drawingの差が顕著でした。
+            </p>
+          </div>
+        </article>
+        <article>
+          <span>04</span>
+          <div>
+            <h2>Phaser — 公開の摩擦が最小</h2>
+            <p>
+              Vite buildを静的hostへ置けば完成。今回のGitHub Pages版はCanvas renderer
+              固定で、古いGPUやheadless browserでも動作を確認しやすくしています。
+              browser/runtime分のmemoryはnative frameworkより増えます。
+            </p>
+          </div>
+        </article>
+        <article>
+          <span>05</span>
+          <div>
+            <h2>Macroquad / Ebitengine — 言語toolchainが強い</h2>
+            <p>
+              MacroquadはRustの型とcargoを保ちながらAPIが小さく、Ebitengineは
+              Goの高速build、format、test、single binary配布が魅力。統合editorより
+              code-firstを好む人に向きます。
+            </p>
+          </div>
+        </article>
+      </section>
+
+      <section class="section source-section">
+        <p class="eyebrow"><span></span> PRIMARY SOURCES</p>
+        <h2>参照した公式資料</h2>
+        <div class="source-grid">
+          <a href="https://godotengine.org/" rel="noreferrer">Godot latest release ↗</a>
+          <a href="https://docs.godotengine.org/en/stable/about/system_requirements.html" rel="noreferrer">Godot system requirements ↗</a>
+          <a href="https://github.com/raysan5/raylib/releases" rel="noreferrer">raylib 6.0 release ↗</a>
+          <a href="https://defold.com/manuals/" rel="noreferrer">Defold manuals ↗</a>
+          <a href="https://defold.com/manuals/bob/" rel="noreferrer">Defold Bob builder ↗</a>
+          <a href="https://love2d.org/" rel="noreferrer">LÖVE 11.5 ↗</a>
+          <a href="https://docs.phaser.io/api-documentation/3.90.0/namespace/phaser" rel="noreferrer">Phaser 3.90 API ↗</a>
+          <a href="https://github.com/not-fl3/macroquad" rel="noreferrer">Macroquad repository ↗</a>
+          <a href="https://ebitengine.org/en/documents/2.9.html" rel="noreferrer">Ebitengine 2.9 notes ↗</a>
+          <a href="https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages" rel="noreferrer">GitHub Pages workflows ↗</a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div><span class="brand-mark">KG</span><p>Kofun Game Matrix · 2026</p></div>
+      <div class="footer-links">
+        <a href="https://github.com/hjosugi/kofun-game">GitHub</a>
+        <a href="matrix.html">Matrix</a>
+        <a href="play/">Play</a>
+      </div>
+    </footer>
+  </body>
+</html>

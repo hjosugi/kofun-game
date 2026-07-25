@@ -1,0 +1,24 @@
+[project]
+title = Kofun Seven - Defold
+version = 1.0
+
+[bootstrap]
+main_collection = /main/main.collectionc
+
+[input]
+game_binding = /input/game.input_bindingc
+
+[display]
+width = 960
+height = 540
+high_dpi = 0
+vsync = 1
+
+[render]
+clear_color_red = 0.027
+clear_color_green = 0.067
+clear_color_blue = 0.122
+clear_color_alpha = 1.0
+
+[gui]
+max_nodes = 512
