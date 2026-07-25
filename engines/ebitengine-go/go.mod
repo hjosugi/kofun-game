@@ -1,10 +1,10 @@
 module github.com/hjosugi/kofun-game/engines/ebitengine-go
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/hajimehoshi/ebiten/v2 v2.9.5
-	golang.org/x/image v0.31.0
+	golang.org/x/image v0.41.0
 )
 
 require (
