@@ -26,7 +26,8 @@ if(NOT TARGET raylib)
     "-DKOFUN_FETCH_RAYLIB=ON.")
 endif()
 
-add_executable(kofun_arcade src/main.c)
+add_executable(kofun_arcade src/main.c src/rules.c)
+target_include_directories(kofun_arcade PRIVATE src)
 target_link_libraries(kofun_arcade PRIVATE raylib)
 
 if(UNIX AND NOT APPLE)
@@ -36,3 +37,13 @@ endif()
 target_compile_options(kofun_arcade PRIVATE
   $<$<C_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>
 )
+
+include(CTest)
+if(BUILD_TESTING)
+  add_executable(kofun_rules_test tests/rules_test.c src/rules.c)
+  target_include_directories(kofun_rules_test PRIVATE src)
+  target_compile_options(kofun_rules_test PRIVATE
+    $<$<C_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>
+  )
+  add_test(NAME kofun_rules_test COMMAND kofun_rules_test)
+endif()

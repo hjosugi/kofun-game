@@ -376,9 +376,22 @@ func movement() vec {
 	return direction.normalized()
 }
 
+func pointerPositionPressed() (vec, bool) {
+	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
+		x, y := ebiten.CursorPosition()
+		return vec{float64(x), float64(y)}, true
+	}
+	touches := inpututil.AppendJustPressedTouchIDs(nil)
+	if len(touches) > 0 {
+		x, y := ebiten.TouchPosition(touches[0])
+		return vec{float64(x), float64(y)}, true
+	}
+	return vec{}, false
+}
+
 func pointerPressed() bool {
-	return inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) ||
-		len(inpututil.AppendJustPressedTouchIDs(nil)) > 0
+	_, ok := pointerPositionPressed()
+	return ok
 }
 
 func (a *arcade) isFinished() bool {
@@ -549,28 +562,30 @@ func (a *arcade) updateTap() {
 	}
 	g.time -= dt
 	g.flash = math.Max(0, g.flash-dt)
-	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		x, y := ebiten.CursorPosition()
-		mouse := vec{float64(x), float64(y)}
-		if mouse.distance(g.target) <= 31 {
-			g.collected++
-			g.target, g.decoys = a.tapPositions()
-		} else {
-			for _, decoy := range g.decoys {
-				if mouse.distance(decoy) <= 28 {
-					g.time -= 3
-					g.flash = .25
-					g.target, g.decoys = a.tapPositions()
-					break
-				}
-			}
-		}
+	if position, ok := pointerPositionPressed(); ok {
+		a.tapAt(g, position)
 	}
 	if g.collected >= 12 {
 		g.state = won
 	} else if g.time <= 0 {
 		g.time = 0
 		g.state = lost
+	}
+}
+
+func (a *arcade) tapAt(g *tapGame, position vec) {
+	if position.distance(g.target) <= 31 {
+		g.collected++
+		g.target, g.decoys = a.tapPositions()
+		return
+	}
+	for _, decoy := range g.decoys {
+		if position.distance(decoy) <= 28 {
+			g.time -= 3
+			g.flash = .25
+			g.target, g.decoys = a.tapPositions()
+			return
+		}
 	}
 }
 
@@ -907,7 +922,7 @@ func (a *arcade) drawTap(screen *ebiten.Image) {
 	}
 	titleBar(screen, "HANIWA TAP PATROL",
 		fmt.Sprintf("TARGETS  %d/12    TIME  %02d", g.collected, int(math.Ceil(g.time))),
-		"CLICK cyan target  |  pink decoy -3 sec")
+		"CLICK / TAP cyan target  |  pink decoy -3 sec")
 	drawCircle(screen, g.target, 31, cyanColor)
 	drawStrokeCircle(screen, g.target, 40, 3, whiteColor)
 	drawCircle(screen, g.target, 7, whiteColor)
@@ -924,7 +939,7 @@ func (a *arcade) drawTap(screen *ebiten.Image) {
 func (a *arcade) drawSky(screen *ebiten.Image) {
 	g := &a.sky
 	titleBar(screen, "DOCHICKEN SKY DODGE", fmt.Sprintf("GATES  %d/10", min(g.passed, 10)),
-		"SPACE / UP / CLICK to flap")
+		"SPACE / UP / CLICK / TAP to flap")
 	for _, gate := range g.gates {
 		drawRect(screen, rect{gate.x, headerHeight, 54, gate.gapY - 75 - headerHeight}, pinkColor)
 		drawRect(screen, rect{gate.x, gate.gapY + 75, 54, screenHeight}, pinkColor)

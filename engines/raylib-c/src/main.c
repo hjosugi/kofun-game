@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include "rules.h"
 
 #include <math.h>
 #include <stdbool.h>
@@ -209,8 +210,8 @@ static void update_courier(App *app, float dt) {
     s->time -= dt;
     for (int i = 0; i < 8; ++i) if (!s->got[i] && circle_hit(s->player, 14, s->relic[i], 11)) {
         s->got[i] = true; s->score++;
-        if (s->score == 8) { end_game(app, true); return; }
     }
+    bool caught = false;
     for (int i = 0; i < 4; ++i) {
         float speed = 88.0f + i * 10.0f;
         Vector2 chase = scale(norm(sub(s->player, s->enemy[i])), 34.0f * dt);
@@ -218,9 +219,15 @@ static void update_courier(App *app, float dt) {
         s->enemy[i] = add(s->enemy[i], scale(s->enemyV[i], dt));
         if (s->enemy[i].x < 16 || s->enemy[i].x > W - 16) s->enemyV[i].x *= -1;
         if (s->enemy[i].y < TOP + 16 || s->enemy[i].y > H - 38) s->enemyV[i].y *= -1;
-        if (circle_hit(s->player, 14, s->enemy[i], 16)) { end_game(app, false); return; }
+        if (circle_hit(s->player, 14, s->enemy[i], 16)) {
+            caught = true;
+            break;
+        }
     }
-    if (s->time <= 0) end_game(app, false);
+    KofunOutcome outcome = kofun_resolve_goal_after_hazard(caught, s->score == 8);
+    if (outcome == KOFUN_OUTCOME_LOST) end_game(app, false);
+    else if (outcome == KOFUN_OUTCOME_WON) end_game(app, true);
+    else if (s->time <= 0) end_game(app, false);
 }
 static void draw_courier(const App *app) {
     const CourierState *s = &app->courier;
@@ -345,7 +352,7 @@ static void draw_tap(const App *app) {
     }
     DrawText("TARGET", (int)s->target.x - 27, (int)s->target.y + (int)s->targetR + 13, 13, MUTED);
     DrawText("-3 SEC", (int)s->decoy.x - 23, (int)s->decoy.y + (int)s->decoyR + 13, 13, ACCENTS[BREAKER]);
-    draw_help("LEFT CLICK solid target  |  R restart  |  ESC menu");
+    draw_help("CLICK / TAP solid target  |  R restart  |  ESC menu");
 }
 
 static void reset_sky(SkyState *s) {
@@ -363,7 +370,6 @@ static void update_sky(App *app, float dt) {
         s->gateX[i] -= 180 * dt;
         if (!s->counted[i] && s->gateX[i] + 62 < 165) {
             s->counted[i] = true; s->passed++;
-            if (s->passed >= 10) { end_game(app, true); return; }
         }
         if (s->gateX[i] < -80) {
             float maxX = s->gateX[0];
@@ -374,7 +380,9 @@ static void update_sky(App *app, float dt) {
         Rectangle bottom = {s->gateX[i], s->gapY[i] + 67, 62, H - s->gapY[i] - 67 - 35};
         if (CheckCollisionRecs(bird, top) || CheckCollisionRecs(bird, bottom)) hit = true;
     }
-    if (hit) end_game(app, false);
+    KofunOutcome outcome = kofun_resolve_goal_after_hazard(hit, s->passed >= 10);
+    if (outcome == KOFUN_OUTCOME_LOST) end_game(app, false);
+    else if (outcome == KOFUN_OUTCOME_WON) end_game(app, true);
 }
 static void draw_sky(const App *app) {
     const SkyState *s = &app->sky;
@@ -391,7 +399,7 @@ static void draw_sky(const App *app) {
     DrawPoly(bird, 3, 19, 90, ACCENTS[SKY_DODGE]);
     DrawCircleV((Vector2){172, s->birdY - 2}, 7, INK);
     DrawCircleV((Vector2){174, s->birdY - 3}, 2, BG);
-    draw_help("SPACE / UP / LEFT CLICK flap  |  R restart  |  ESC menu");
+    draw_help("SPACE / UP / CLICK / TAP flap  |  R restart  |  ESC menu");
 }
 
 static void reset_dash(DashState *s) {
@@ -440,7 +448,7 @@ static void draw_dash(const App *app) {
     }
     DrawRectangleRounded((Rectangle){150, s->y - 31, 30, 31}, .35f, 6, INK);
     DrawCircle(158, (int)s->y, 6, ACCENTS[NEON_DASH]); DrawCircle(174, (int)s->y, 6, ACCENTS[NEON_DASH]);
-    draw_help("SPACE / UP / LEFT CLICK jump  |  R restart  |  ESC menu");
+    draw_help("SPACE / UP / CLICK / TAP jump  |  R restart  |  ESC menu");
 }
 
 static void orbit_spawn(OrbitState *s) {

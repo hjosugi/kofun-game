@@ -542,7 +542,7 @@ local function draw_sky(self)
 	box(self, self.player.x, self.player.y, 32, 23, C.cyan, math.pi / 4)
 	box(self, self.player.x - 13, self.player.y, 17, 5, C.gold)
 	label(self, "GATES " .. self.score .. " / 10", 45, 424, 18, C.gold, false)
-	label(self, "FLAP  SPACE / CLICK", 480, 17, 15, C.muted, true)
+	label(self, "FLAP  SPACE / UP / CLICK / TAP", 480, 17, 15, C.muted, true)
 end
 
 local function draw_dash(self)

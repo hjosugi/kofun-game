@@ -11,6 +11,7 @@ raylib 6.0 and CMake 3.20+ are required.
 ```sh
 cmake -S . -B build
 cmake --build build -j
+ctest --test-dir build --output-on-failure
 ./build/kofun_arcade
 ```
 
@@ -20,9 +21,9 @@ cmake --build build -j
 - Every game: `Esc` returns to the menu; `R` restarts
 - Courier / Orbit: WASD or arrows; Orbit pulse: Space
 - Breaker: A/D or Left/Right; Space launches
-- Tap Patrol: click targets; avoid the striped decoy
-- Sky Dodge: Space or left click to flap
-- Neon Dash: Space, Up, or left click to jump
+- Tap Patrol: click or tap targets; avoid the striped decoy
+- Sky Dodge: Space, Up, click, or tap to flap
+- Neon Dash: Space, Up, click, or tap to jump
 - Snake: arrows or WASD
 
 Each mode has its own win/loss conditions, HUD, in-game help, result screen, and

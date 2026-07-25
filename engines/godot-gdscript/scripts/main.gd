@@ -545,7 +545,7 @@ func draw_sky() -> void:
 		draw_rect(Rect2(gate.x - 29, gy + 68, 58, 12), GOLD)
 	draw_colored_polygon(PackedVector2Array([player + Vector2(-19, 12), player + Vector2(20, 0), player + Vector2(-19, -12)]), CYAN)
 	text("GATES %d / 10" % score, Vector2(45, 120), 18, GOLD)
-	text("FLAP  SPACE / CLICK", Vector2(480, 525), 15, Color("#91aec2"), true)
+	text("FLAP  SPACE / UP / CLICK / TAP", Vector2(480, 525), 15, Color("#91aec2"), true)
 
 
 func draw_dash() -> void:

@@ -1,4 +1,5 @@
 local W, H, TOP = 960, 540, 76
+local rules = require("rules")
 local gameCount = 7
 local names = {
   "COURIER", "BREAKER", "TAP PATROL", "SKY DODGE",
@@ -124,9 +125,9 @@ local function updateCourier(s, dt)
   for _, relic in ipairs(s.relic) do
     if not relic.got and circleHit(s.player, 14, relic.p, 11) then
       relic.got, s.score = true, s.score + 1
-      if s.score == 8 then endGame(true); return end
     end
   end
+  local caught = false
   for _, enemy in ipairs(s.enemy) do
     local nx, ny = normalize(s.player.x - enemy.p.x, s.player.y - enemy.p.y)
     local speed = math.sqrt(enemy.vx * enemy.vx + enemy.vy * enemy.vy)
@@ -135,9 +136,11 @@ local function updateCourier(s, dt)
     enemy.p.x, enemy.p.y = enemy.p.x + enemy.vx * dt, enemy.p.y + enemy.vy * dt
     if enemy.p.x < 16 or enemy.p.x > W - 16 then enemy.vx = -enemy.vx end
     if enemy.p.y < TOP + 16 or enemy.p.y > H - 38 then enemy.vy = -enemy.vy end
-    if circleHit(s.player, 14, enemy.p, 16) then endGame(false); return end
+    if circleHit(s.player, 14, enemy.p, 16) then caught = true; break end
   end
-  if s.remaining <= 0 then endGame(false) end
+  local outcome = rules.goal_after_hazard(caught, s.score == 8)
+  if outcome ~= nil then endGame(outcome)
+  elseif s.remaining <= 0 then endGame(false) end
 end
 local function drawCourier(s)
   header("Collect every gold relic",
@@ -272,7 +275,7 @@ local function drawTap(s)
   end
   text("TARGET", s.target.x - 27, s.target.y + s.targetR + 13, fonts.micro, muted)
   text("-3 SEC", s.decoy.x - 23, s.decoy.y + s.decoyR + 13, fonts.micro, accents[2])
-  help("LEFT CLICK solid target  |  R restart  |  ESC menu")
+  help("CLICK / TAP solid target  |  R restart  |  ESC menu")
 end
 
 -- Sky Dodge ------------------------------------------------------------------
@@ -291,7 +294,6 @@ local function updateSky(s, dt)
     gate.x = gate.x - 180 * dt
     if not gate.counted and gate.x + 62 < 165 then
       gate.counted, s.passed = true, s.passed + 1
-      if s.passed >= 10 then endGame(true); return end
     end
     if gate.x < -80 then
       local maxX = gate.x
@@ -302,7 +304,8 @@ local function updateSky(s, dt)
     local bottom = { x = gate.x, y = gate.gap + 67, w = 62, h = H - gate.gap - 102 }
     if rectHit(bird, top) or rectHit(bird, bottom) then hit = true end
   end
-  if hit then endGame(false) end
+  local outcome = rules.goal_after_hazard(hit, s.passed >= 10)
+  if outcome ~= nil then endGame(outcome) end
 end
 local function drawSky(s)
   header("Thread the glowing gates", ("GATES %d/10"):format(s.passed))
@@ -317,7 +320,7 @@ local function drawSky(s)
   setColor(accents[4]); polygonCircle(3, 179, s.birdY, 19, math.pi / 2)
   setColor(ink); love.graphics.circle("fill", 172, s.birdY - 2, 7)
   setColor(bg); love.graphics.circle("fill", 174, s.birdY - 3, 2)
-  help("SPACE / UP / LEFT CLICK flap  |  R restart  |  ESC menu")
+  help("SPACE / UP / CLICK / TAP flap  |  R restart  |  ESC menu")
 end
 
 -- Neon Dash ------------------------------------------------------------------
@@ -365,7 +368,7 @@ local function drawDash(s)
   end
   setColor(ink); roundRect("fill", 150, s.y - 31, 30, 31, 8)
   setColor(accents[5]); love.graphics.circle("fill", 158, s.y, 6); love.graphics.circle("fill", 174, s.y, 6)
-  help("SPACE / UP / LEFT CLICK jump  |  R restart  |  ESC menu")
+  help("SPACE / UP / CLICK / TAP jump  |  R restart  |  ESC menu")
 end
 
 -- Kofun Orbit ----------------------------------------------------------------

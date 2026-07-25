@@ -26,7 +26,7 @@ The Lua-side runtime smoke test uses small Defold API doubles:
 - Movement: WASD or arrow keys
 - Action: `Space` (Sky Dodge flap, Neon Dash jump, Kofun Orbit pulse)
 - Tap Patrol: click or tap the cyan signal
-- Neon Dash: click or tap also jumps
+- Sky Dodge and Neon Dash: click or tap also activates the action
 - Any result: `Enter` or `R` to retry
 - Any game: `Esc` to return to the menu
 

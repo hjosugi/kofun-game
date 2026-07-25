@@ -58,6 +58,25 @@ func TestSkyLossWinsOverTenthGate(t *testing.T) {
 	}
 }
 
+func TestTapAtHandlesTargetAndDecoyBoundaries(t *testing.T) {
+	game := newArcade()
+	target := game.tap.target
+	game.tapAt(&game.tap, target)
+	if game.tap.collected != 1 {
+		t.Fatalf("target press collected = %d, want 1", game.tap.collected)
+	}
+
+	decoy := game.tap.decoys[0]
+	before := game.tap.time
+	game.tapAt(&game.tap, decoy)
+	if game.tap.time != before-3 {
+		t.Fatalf("decoy press time = %v, want %v", game.tap.time, before-3)
+	}
+	if game.tap.flash != .25 {
+		t.Fatalf("decoy press flash = %v, want .25", game.tap.flash)
+	}
+}
+
 func TestFinishedModeIsAvailableToRestartInput(t *testing.T) {
 	game := newArcade()
 	if game.isFinished() {

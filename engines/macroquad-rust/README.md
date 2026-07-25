@@ -29,8 +29,8 @@ cargo clippy --all-targets -- -D warnings
 
 1. Kofun Courier — 45秒以内に8個回収。WASD/矢印で移動し、追跡する敵を避けます。接触すると即失敗です。
 2. Mound Breaker — 5×10ブロックを3ライフで破壊します。
-3. Haniwa Tap Patrol — 30秒以内に12個のターゲットをクリック。デコイは残り時間を3秒奪います。
-4. Dochicken Sky Dodge — Space/↑/クリックで羽ばたき、10ゲートを通過します。
+3. Haniwa Tap Patrol — 30秒以内に12個のターゲットをクリックまたはタップ。デコイは残り時間を3秒奪います。
+4. Dochicken Sky Dodge — Space/↑/クリックまたはタップで羽ばたき、10ゲートを通過します。
 5. Neon Kofun Dash — Space/↑/クリックまたはタッチで障害物を跳び越え、30秒走り切ります。
 6. Kofun Orbit — WASD/矢印で移動、Spaceのパルスで敵を押し返し、接触せず30秒生存します。
 7. Kofun Snake — 矢印/WASDで進み、15個のフードを集めます。

@@ -29,8 +29,8 @@ go vet ./...
 
 1. Kofun Courier — 45秒以内に8個のレリックを回収。追跡する敵との接触は即失敗です。
 2. Mound Breaker — 3ライフ以内に5×10個のブロックを破壊します。
-3. Haniwa Tap Patrol — 30秒以内に12ターゲット。デコイを押すと残り時間が3秒減ります。
-4. Dochicken Sky Dodge — Space/↑/クリックで羽ばたき、10ゲートを通過します。
+3. Haniwa Tap Patrol — 30秒以内に12ターゲットをクリックまたはタップ。デコイを押すと残り時間が3秒減ります。
+4. Dochicken Sky Dodge — Space/↑/クリックまたはタップで羽ばたき、10ゲートを通過します。
 5. Neon Kofun Dash — Space/↑/クリックまたはタッチで障害物をジャンプし、30秒走り切ります。
 6. Kofun Orbit — WASD/矢印で移動し、Spaceのパルスで敵を押し返して、接触せず30秒生存します。
 7. Kofun Snake — グリッド上で15個のフードを集めます。

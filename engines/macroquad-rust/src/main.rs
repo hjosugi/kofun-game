@@ -443,11 +443,18 @@ fn movement() -> Vec2 {
     direction.normalize_or_zero()
 }
 
+fn pointer_position_pressed() -> Option<Vec2> {
+    if is_mouse_button_pressed(MouseButton::Left) {
+        return Some(Vec2::from(mouse_position()));
+    }
+    touches()
+        .into_iter()
+        .find(|touch| touch.phase == TouchPhase::Started)
+        .map(|touch| touch.position)
+}
+
 fn pointer_pressed() -> bool {
-    is_mouse_button_pressed(MouseButton::Left)
-        || touches()
-            .iter()
-            .any(|touch| touch.phase == TouchPhase::Started)
+    pointer_position_pressed().is_some()
 }
 
 fn update_courier(game: &mut Courier, dt: f32) {
@@ -543,30 +550,33 @@ fn update_tap(game: &mut Tap, dt: f32) {
     }
     game.time -= dt;
     game.flash = (game.flash - dt).max(0.0);
-    if is_mouse_button_pressed(MouseButton::Left) {
-        let mouse = Vec2::from(mouse_position());
-        if mouse.distance(game.target) <= 31.0 {
-            game.collected += 1;
-            let (target, decoys) = new_tap_positions();
-            game.target = target;
-            game.decoys = decoys;
-        } else if game
-            .decoys
-            .iter()
-            .any(|decoy| mouse.distance(*decoy) <= 28.0)
-        {
-            game.time -= 3.0;
-            game.flash = 0.25;
-            let (target, decoys) = new_tap_positions();
-            game.target = target;
-            game.decoys = decoys;
-        }
+    if let Some(position) = pointer_position_pressed() {
+        apply_tap_press(game, position);
     }
     if game.collected >= 12 {
         game.state = ResultState::Won;
     } else if game.time <= 0.0 {
         game.time = 0.0;
         game.state = ResultState::Lost;
+    }
+}
+
+fn apply_tap_press(game: &mut Tap, position: Vec2) {
+    if position.distance(game.target) <= 31.0 {
+        game.collected += 1;
+        let (target, decoys) = new_tap_positions();
+        game.target = target;
+        game.decoys = decoys;
+    } else if game
+        .decoys
+        .iter()
+        .any(|decoy| position.distance(*decoy) <= 28.0)
+    {
+        game.time -= 3.0;
+        game.flash = 0.25;
+        let (target, decoys) = new_tap_positions();
+        game.target = target;
+        game.decoys = decoys;
     }
 }
 
@@ -909,7 +919,7 @@ fn draw_tap(game: &Tap) {
             game.collected,
             game.time.ceil() as i32
         ),
-        "CLICK cyan target  |  pink decoy -3 sec",
+        "CLICK / TAP cyan target  |  pink decoy -3 sec",
     );
     draw_circle(game.target.x, game.target.y, 31.0, CYAN);
     draw_circle_lines(game.target.x, game.target.y, 40.0, 3.0, WHITE);
@@ -940,7 +950,7 @@ fn draw_sky(game: &Sky) {
     title_bar(
         "DOCHICKEN SKY DODGE",
         &format!("GATES  {}/10", game.passed.min(10)),
-        "SPACE / UP / CLICK to flap",
+        "SPACE / UP / CLICK / TAP to flap",
     );
     for gate in &game.gates {
         draw_rectangle(gate.x, HEADER, 54.0, gate.gap_y - 75.0 - HEADER, PINK);
@@ -1109,6 +1119,20 @@ mod tests {
             resolve_sky_result(ResultState::Playing, 10),
             ResultState::Won
         );
+    }
+
+    #[test]
+    fn tap_press_handles_target_and_decoy_boundaries() {
+        let mut game = reset_tap();
+        let target = game.target;
+        apply_tap_press(&mut game, target);
+        assert_eq!(game.collected, 1);
+
+        let decoy = game.decoys[0];
+        let time = game.time;
+        apply_tap_press(&mut game, decoy);
+        assert_eq!(game.time, time - 3.0);
+        assert_eq!(game.flash, 0.25);
     }
 
     #[test]

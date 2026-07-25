@@ -12,8 +12,14 @@ Install LÖVE 11.x, then run:
 love .
 ```
 
-You can also package `main.lua`, `conf.lua`, and this README in a zip renamed
+You can also package `main.lua`, `rules.lua`, `conf.lua`, and this README in a zip renamed
 with a `.love` extension.
+
+Rule-priority test:
+
+```sh
+lua tests/rules_test.lua
+```
 
 ## Controls
 
@@ -21,9 +27,9 @@ with a `.love` extension.
 - All modes: `Esc` returns to the menu and `R` restarts
 - Courier / Kofun Orbit: WASD or arrows; Orbit pulse: Space
 - Breaker: A/D or Left/Right; Space launches
-- Tap Patrol: left-click the solid target, avoid the striped decoy
-- Sky Dodge: Space or left-click to flap
-- Neon Dash: Space, Up, or left-click to jump
+- Tap Patrol: click or tap the solid target, avoid the striped decoy
+- Sky Dodge: Space, Up, click, or tap to flap
+- Neon Dash: Space, Up, click, or tap to jump
 - Snake: arrows or WASD
 
 Every mode includes a dedicated HUD, instructions, success/failure state and
