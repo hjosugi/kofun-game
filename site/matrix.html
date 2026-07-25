@@ -13,6 +13,7 @@
     <script src="app.js" defer></script>
   </head>
   <body>
+    <a class="skip-link" href="#main-content">本文へ移動</a>
     <header class="site-header">
       <a class="brand" href="index.html">
         <span class="brand-mark">KG</span><span>Kofun Game Matrix</span>
@@ -24,7 +25,7 @@
       </nav>
     </header>
 
-    <main>
+    <main id="main-content" tabindex="-1">
       <section class="page-hero matrix-hero">
         <p class="eyebrow"><span></span> IMPLEMENTATION MATRIX</p>
         <h1>7 × 7。<br /><em>空欄なし。</em></h1>
@@ -37,6 +38,7 @@
       <section class="section prose-section">
         <div class="table-wrap matrix-wrap">
           <table class="matrix-table">
+            <caption class="sr-only">7ゲームと7エンジンの49実装一覧</caption>
             <thead>
               <tr>
                 <th>GAME \ ENGINE</th>
@@ -104,7 +106,7 @@
           <h2>「ファイルがある」ではなく、動くことを検査。</h2>
         </div>
         <ul>
-          <li><b>Web</b><span>TypeScript strict + Vite production build</span></li>
+          <li><b>Web</b><span>TypeScript strict · Vite build · Firefox 7-mode smoke</span></li>
           <li><b>Native</b><span>C compile · cargo clippy · go vet/test</span></li>
           <li><b>Script</b><span>Godot headless · Defold Bob · Lua parse/smoke</span></li>
           <li><b>UX</b><span>ASCII-safe HUD · 960×540 · software rendering path</span></li>

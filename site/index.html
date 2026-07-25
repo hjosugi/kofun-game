@@ -13,6 +13,7 @@
     <script src="app.js" defer></script>
   </head>
   <body>
+    <a class="skip-link" href="#main-content">本文へ移動</a>
     <header class="site-header">
       <a class="brand" href="index.html" aria-label="Kofun Game Matrix home">
         <span class="brand-mark">KG</span>
@@ -25,7 +26,7 @@
       </nav>
     </header>
 
-    <main>
+    <main id="main-content" tabindex="-1">
       <section class="hero">
         <div class="hero-copy">
           <p class="eyebrow"><span></span> LOW-SPEC GAME ENGINE LAB</p>
@@ -96,41 +97,41 @@
         </div>
 
         <div class="game-grid">
-          <article class="game-card accent-violet">
+          <a class="game-card accent-violet" href="play/?game=1" aria-label="Kofun Courierを遊ぶ">
             <b>01</b><span class="game-icon">◆</span>
             <h3>Kofun Courier</h3><p>回収アクション</p>
             <small>MOVE · CHASE · COLLECT</small>
-          </article>
-          <article class="game-card accent-pink">
+          </a>
+          <a class="game-card accent-pink" href="play/?game=2" aria-label="Mound Breakerを遊ぶ">
             <b>02</b><span class="game-icon">▦</span>
             <h3>Mound Breaker</h3><p>ブロック崩し</p>
             <small>BOUNCE · COLLIDE · CLEAR</small>
-          </article>
-          <article class="game-card accent-cyan">
+          </a>
+          <a class="game-card accent-cyan" href="play/?game=3" aria-label="Haniwa Tap Patrolを遊ぶ">
             <b>03</b><span class="game-icon">◎</span>
             <h3>Haniwa Tap Patrol</h3><p>タップゲーム</p>
             <small>POINT · TAP · REACT</small>
-          </article>
-          <article class="game-card accent-orange">
+          </a>
+          <a class="game-card accent-orange" href="play/?game=4" aria-label="Dochicken Sky Dodgeを遊ぶ">
             <b>04</b><span class="game-icon">≋</span>
             <h3>Dochicken Sky Dodge</h3><p>フラップ回避</p>
             <small>GRAVITY · GATES · SCORE</small>
-          </article>
-          <article class="game-card accent-yellow">
+          </a>
+          <a class="game-card accent-yellow" href="play/?game=5" aria-label="Neon Kofun Dashを遊ぶ">
             <b>05</b><span class="game-icon">⌁</span>
             <h3>Neon Kofun Dash</h3><p>ランナー</p>
             <small>JUMP · SPAWN · SURVIVE</small>
-          </article>
-          <article class="game-card accent-blue">
+          </a>
+          <a class="game-card accent-blue" href="play/?game=6" aria-label="Kofun Orbitを遊ぶ">
             <b>06</b><span class="game-icon">◉</span>
             <h3>Kofun Orbit</h3><p>アリーナ</p>
             <small>MOVE · PULSE · CROWD</small>
-          </article>
-          <article class="game-card accent-green wide">
+          </a>
+          <a class="game-card accent-green wide" href="play/?game=7" aria-label="Kofun Snakeを遊ぶ">
             <b>07</b><span class="game-icon">▰</span>
             <h3>Kofun Snake</h3><p>グリッドゲーム</p>
             <small>TURN · GROW · PLAN</small>
-          </article>
+          </a>
         </div>
       </section>
 

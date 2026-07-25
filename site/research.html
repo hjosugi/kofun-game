@@ -13,6 +13,7 @@
     <script src="app.js" defer></script>
   </head>
   <body>
+    <a class="skip-link" href="#main-content">本文へ移動</a>
     <header class="site-header">
       <a class="brand" href="index.html">
         <span class="brand-mark">KG</span><span>Kofun Game Matrix</span>
@@ -24,7 +25,7 @@
       </nav>
     </header>
 
-    <main>
+    <main id="main-content" tabindex="-1">
       <section class="page-hero research-hero">
         <p class="eyebrow"><span></span> RESEARCH · 2026-07-25</p>
         <h1>軽量ゲームエンジン、<br /><em>実装して</em>比較。</h1>
@@ -54,6 +55,7 @@
 
         <div class="table-wrap">
           <table class="research-table">
+            <caption class="sr-only">検証対象エンジンのバージョン、言語、種類、主な強み</caption>
             <thead>
               <tr><th>engine</th><th>version</th><th>language</th><th>type</th><th>主な強み</th></tr>
             </thead>
@@ -79,6 +81,7 @@
 
         <div class="table-wrap">
           <table class="score-table">
+            <caption class="sr-only">各エンジンの用途別5段階評価</caption>
             <thead>
               <tr>
                 <th>engine</th><th>低spec</th><th>初学者</th><th>Web</th>
@@ -144,6 +147,7 @@
             <p>
               Vite buildを静的hostへ置けば完成。今回のGitHub Pages版はCanvas renderer
               固定で、古いGPUやheadless browserでも動作を確認しやすくしています。
+              keyboardに加えてtouch方向buttonとswipe操作にも対応しました。
               browser/runtime分のmemoryはnative frameworkより増えます。
             </p>
           </div>

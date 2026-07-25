@@ -14,14 +14,173 @@
         font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
         background: #070510;
       }
-      * { box-sizing: border-box; }
-      html, body, #game { width: 100%; height: 100%; margin: 0; }
-      body { overflow: hidden; }
-      canvas { display: block; }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body,
+      #game {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        overflow: hidden;
+      }
+      #game {
+        outline: none;
+        touch-action: none;
+      }
+      #game:focus-visible {
+        box-shadow: inset 0 0 0 3px #fff3b0;
+      }
+      canvas {
+        display: block;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .game-controls {
+        position: fixed;
+        display: none;
+      }
+      .game-controls button {
+        min-width: 52px;
+        min-height: 48px;
+        border: 1px solid #9f7aea;
+        border-radius: 10px;
+        color: #fff;
+        background: #100a22d9;
+        font:
+          700 16px/1 ui-monospace,
+          monospace;
+        touch-action: none;
+      }
+      .game-controls button:focus-visible {
+        outline: 3px solid #fff3b0;
+        outline-offset: 2px;
+      }
+      .game-controls button:disabled {
+        opacity: 0.28;
+      }
+      .direction-controls {
+        display: grid;
+        grid-template-columns: repeat(3, 52px);
+        grid-template-rows: repeat(2, 48px);
+        gap: 5px;
+      }
+      [data-direction="up"] {
+        grid-column: 2;
+      }
+      [data-direction="left"] {
+        grid-column: 1;
+        grid-row: 2;
+      }
+      [data-direction="down"] {
+        grid-column: 2;
+        grid-row: 2;
+      }
+      [data-direction="right"] {
+        grid-column: 3;
+        grid-row: 2;
+      }
+      .action-controls {
+        display: flex;
+        gap: 8px;
+        align-items: end;
+      }
+      [data-action] {
+        min-width: 88px !important;
+        color: #090619 !important;
+        background: #fff3b0 !important;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      @media (pointer: coarse), (max-width: 680px) {
+        .game-controls {
+          width: auto;
+          height: auto;
+          inset: auto 12px 12px;
+          display: flex;
+          justify-content: space-between;
+          align-items: end;
+          pointer-events: none;
+          z-index: 10;
+        }
+        .game-controls button {
+          pointer-events: auto;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+        }
+      }
     </style>
+    <script>
+      window.__KOFUN_ERRORS__ = [];
+      document.documentElement.dataset.runtimeErrors = "[]";
+      window.addEventListener("error", (event) => {
+        window.__KOFUN_ERRORS__.push(event.message || "Unknown runtime error");
+        document.documentElement.dataset.runtimeErrors = JSON.stringify(
+          window.__KOFUN_ERRORS__,
+        );
+      });
+      window.addEventListener("unhandledrejection", (event) => {
+        window.__KOFUN_ERRORS__.push(
+          String(event.reason || "Unhandled rejection"),
+        );
+        document.documentElement.dataset.runtimeErrors = JSON.stringify(
+          window.__KOFUN_ERRORS__,
+        );
+      });
+    </script>
   </head>
   <body>
-    <main id="game" aria-label="Kofun Game Matrix"></main>
+    <main
+      id="game"
+      role="application"
+      tabindex="0"
+      aria-label="Kofun Game Matrix"
+      aria-describedby="game-instructions game-status"
+    ></main>
+    <p id="game-instructions" class="sr-only">
+      7つのミニゲームを選んで遊べます。キーボードは矢印、WASD、Space、
+      Enter、Escapeを使います。タッチ画面では画面上の方向・アクション・
+      メニューボタンを使えます。
+    </p>
+    <p
+      id="game-status"
+      class="sr-only"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      ゲームを読み込んでいます。
+    </p>
+    <section class="game-controls" aria-label="タッチ操作">
+      <div class="direction-controls">
+        <button type="button" data-direction="up" aria-label="上">↑</button>
+        <button type="button" data-direction="left" aria-label="左">←</button>
+        <button type="button" data-direction="down" aria-label="下">↓</button>
+        <button type="button" data-direction="right" aria-label="右">→</button>
+      </div>
+      <div class="action-controls">
+        <button type="button" data-menu>メニュー</button>
+        <button type="button" data-action>決定</button>
+      </div>
+    </section>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

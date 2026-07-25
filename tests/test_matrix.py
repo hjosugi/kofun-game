@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import unittest
+from html.parser import HTMLParser
 from pathlib import Path
 
 
@@ -58,6 +59,28 @@ def source_text(project: Path) -> str:
     return "\n".join(parts).upper()
 
 
+class PageAudit(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.ids: set[str] = set()
+        self.links: list[str] = []
+        self.skip_links: list[str] = []
+        self.captions = 0
+
+    def handle_starttag(
+        self, tag: str, attrs: list[tuple[str, str | None]]
+    ) -> None:
+        values = dict(attrs)
+        if node_id := values.get("id"):
+            self.ids.add(node_id)
+        if tag == "a" and (href := values.get("href")):
+            self.links.append(href)
+            if "skip-link" in (values.get("class") or "").split():
+                self.skip_links.append(href)
+        if tag == "caption":
+            self.captions += 1
+
+
 class MatrixStructureTests(unittest.TestCase):
     def test_all_seven_engine_projects_exist(self) -> None:
         self.assertEqual(7, len(ENGINES))
@@ -104,6 +127,33 @@ class MatrixStructureTests(unittest.TestCase):
         self.assertIn("play/", index)
         for engine in ENGINES:
             self.assertIn(engine, research)
+
+    def test_site_navigation_and_accessibility_landmarks(self) -> None:
+        for name in ("index.html", "matrix.html", "research.html"):
+            audit = PageAudit()
+            audit.feed((ROOT / "site" / name).read_text(encoding="utf-8"))
+            with self.subTest(page=name):
+                self.assertIn("main-content", audit.ids)
+                self.assertEqual(["#main-content"], audit.skip_links)
+                for href in audit.links:
+                    if href.startswith(("http:", "https:", "#", "play/")):
+                        continue
+                    self.assertTrue((ROOT / "site" / href).is_file(), href)
+
+    def test_site_exposes_all_games_and_table_captions(self) -> None:
+        index_audit = PageAudit()
+        index_audit.feed(
+            (ROOT / "site" / "index.html").read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            {f"play/?game={number}" for number in range(1, 8)},
+            {href for href in index_audit.links if href.startswith("play/?game=")},
+        )
+        for name in ("matrix.html", "research.html"):
+            audit = PageAudit()
+            audit.feed((ROOT / "site" / name).read_text(encoding="utf-8"))
+            with self.subTest(page=name):
+                self.assertGreater(audit.captions, 0)
 
     def test_asset_attribution_is_present(self) -> None:
         credits = (ROOT / "ASSETS.md").read_text(encoding="utf-8")

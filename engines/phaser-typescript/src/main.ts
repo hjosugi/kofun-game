@@ -1,4 +1,11 @@
 import Phaser from "phaser";
+import {
+  GAME_COUNT,
+  menuRowAt,
+  simulationDelta,
+  snakeHitsBody,
+  swipeDirection,
+} from "./game-logic.js";
 
 const WIDTH = 960;
 const HEIGHT = 540;
@@ -9,12 +16,12 @@ const GAMES = [
   {
     title: "KOFUN COURIER",
     subtitle: "Collect 8 haniwa. Avoid Dochicken.",
-    controls: "MOVE  WASD / ARROWS",
+    controls: "MOVE  WASD / ARROWS / TOUCH",
   },
   {
     title: "MOUND BREAKER",
     subtitle: "Break all 50 burial mounds.",
-    controls: "MOVE  A/D / LEFT/RIGHT",
+    controls: "MOVE  A/D / LEFT/RIGHT / TOUCH",
   },
   {
     title: "HANIWA TAP PATROL",
@@ -34,14 +41,18 @@ const GAMES = [
   {
     title: "KOFUN ORBIT",
     subtitle: "Pulse enemies away. Survive 30 seconds.",
-    controls: "MOVE  WASD / ARROWS    PULSE  SPACE",
+    controls: "MOVE  WASD / ARROWS / TOUCH    PULSE  SPACE / TAP",
   },
   {
     title: "KOFUN SNAKE",
     subtitle: "Collect 15 haniwa without crashing.",
-    controls: "TURN  WASD / ARROWS",
+    controls: "TURN  WASD / ARROWS / SWIPE",
   },
 ] as const;
+
+if (GAMES.length !== GAME_COUNT) {
+  throw new Error(`Expected ${GAME_COUNT} games, received ${GAMES.length}`);
+}
 
 type Keys = {
   up: Phaser.Input.Keyboard.Key;
@@ -68,6 +79,16 @@ type Point = { x: number; y: number };
 type Enemy = Point & { speed: number };
 type Gate = { x: number; gapY: number; counted: boolean };
 type Obstacle = { x: number; width: number; height: number };
+type DirectionControl = "up" | "down" | "left" | "right";
+type RuntimeWindow = Window & {
+  __KOFUN_ERRORS__?: string[];
+  __KOFUN_RUNTIME__?: {
+    frame: number;
+    mode: number;
+    title: string;
+    ended: boolean;
+  };
+};
 
 class MatrixScene extends Phaser.Scene {
   private graphics!: Phaser.GameObjects.Graphics;
@@ -86,6 +107,14 @@ class MatrixScene extends Phaser.Scene {
   private won = false;
   private elapsed = 0;
   private pulseFlash = 0;
+  private frame = 0;
+  private pointerStart: Point | null = null;
+  private touchDirections: Record<DirectionControl, boolean> = {
+    up: false,
+    down: false,
+    left: false,
+    right: false,
+  };
 
   private courier = {
     player: { x: 170, y: 300 },
@@ -227,8 +256,7 @@ class MatrixScene extends Phaser.Scene {
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       if (this.mode < 0) {
-        // Phaser Text uses roughly fontSize + lineSpacing for each menu row.
-        const row = Math.floor((pointer.y - 194) / 30);
+        const row = menuRowAt(pointer.y);
         if (row >= 0 && row < GAMES.length) this.startGame(row);
         return;
       }
@@ -240,21 +268,37 @@ class MatrixScene extends Phaser.Scene {
         this.flapBird();
       } else if (this.mode === 4) {
         this.jump();
+      } else if (this.mode === 5) {
+        this.pulseOrbit();
+      } else if (this.mode === 6) {
+        this.pointerStart = { x: pointer.x, y: pointer.y };
       }
     });
+    this.input.on("pointerup", (pointer: Phaser.Input.Pointer) => {
+      if (this.mode !== 6 || !this.pointerStart) return;
+      const direction = swipeDirection(this.pointerStart, {
+        x: pointer.x,
+        y: pointer.y,
+      });
+      this.pointerStart = null;
+      if (direction) this.turnSnake(direction);
+    });
 
+    this.bindDomControls();
     this.showMenu();
     const requestedGame = Number.parseInt(
       new URLSearchParams(window.location.search).get("game") ?? "",
       10,
     );
-    if (requestedGame >= 1 && requestedGame <= GAMES.length) {
+    if (requestedGame >= 1 && requestedGame <= GAME_COUNT) {
       this.startGame(requestedGame - 1);
     }
   }
 
   update(_time: number, deltaMs: number): void {
-    const delta = Math.min(deltaMs / 1000, 0.05);
+    const delta = simulationDelta(deltaMs);
+    this.frame += 1;
+    this.publishRuntimeState();
     if (Phaser.Input.Keyboard.JustDown(this.keys.escape)) {
       this.showMenu();
       return;
@@ -334,10 +378,15 @@ class MatrixScene extends Phaser.Scene {
   private showMenu(): void {
     this.mode = -1;
     this.ended = false;
+    this.resetTouchDirections();
     this.resultText.setVisible(false);
     this.mascot.setVisible(true);
     this.haniwa.setVisible(true);
     this.background.setAlpha(0.28);
+    this.updateDomControls();
+    this.announce(
+      "Game menu. Choose a game with Up and Down, then press Enter.",
+    );
     this.drawMenu();
   }
 
@@ -376,6 +425,8 @@ class MatrixScene extends Phaser.Scene {
     this.mascot.setVisible(false);
     this.haniwa.setVisible(false);
     this.background.setAlpha(0.13);
+    this.pointerStart = null;
+    this.resetTouchDirections();
 
     switch (index) {
       case 0:
@@ -449,6 +500,9 @@ class MatrixScene extends Phaser.Scene {
         this.placeSnakeFood();
         break;
     }
+    this.updateDomControls();
+    this.announce(`${GAMES[index].title} started. ${GAMES[index].controls}`);
+    this.publishRuntimeState();
     this.drawGame();
   }
 
@@ -461,15 +515,52 @@ class MatrixScene extends Phaser.Scene {
         `${won ? "MISSION COMPLETE!" : "TRY AGAIN!"}\n${GAMES[this.mode].title}\n\nENTER / TAP TO REPLAY   |   ESC MENU`,
       )
       .setVisible(true);
+    this.updateDomControls();
+    this.announce(
+      `${won ? "Mission complete" : "Game over"}. ${GAMES[this.mode].title}. Press Enter or Action to replay.`,
+    );
+    this.publishRuntimeState();
   }
 
   private movement(speed: number, delta: number): Point {
     let x = 0;
     let y = 0;
-    if (this.keys.left.isDown || this.keys.a.isDown) x -= 1;
-    if (this.keys.right.isDown || this.keys.d.isDown) x += 1;
-    if (this.keys.up.isDown || this.keys.w.isDown) y -= 1;
-    if (this.keys.down.isDown || this.keys.s.isDown) y += 1;
+    if (
+      this.keys.left.isDown ||
+      this.keys.a.isDown ||
+      this.touchDirections.left
+    )
+      x -= 1;
+    if (
+      this.keys.right.isDown ||
+      this.keys.d.isDown ||
+      this.touchDirections.right
+    )
+      x += 1;
+    if (this.keys.up.isDown || this.keys.w.isDown || this.touchDirections.up)
+      y -= 1;
+    if (
+      this.keys.down.isDown ||
+      this.keys.s.isDown ||
+      this.touchDirections.down
+    )
+      y += 1;
+
+    if (
+      this.input.activePointer.isDown &&
+      (this.mode === 0 || this.mode === 5)
+    ) {
+      const dx =
+        this.input.activePointer.x -
+        (this.mode === 0 ? this.courier.player.x : this.orbit.player.x);
+      const dy =
+        this.input.activePointer.y -
+        (this.mode === 0 ? this.courier.player.y : this.orbit.player.y);
+      if (Math.hypot(dx, dy) > 16) {
+        x += dx;
+        y += dy;
+      }
+    }
     const length = Math.hypot(x, y) || 1;
     return { x: (x / length) * speed * delta, y: (y / length) * speed * delta };
   }
@@ -505,13 +596,30 @@ class MatrixScene extends Phaser.Scene {
 
   private updateBreaker(delta: number): void {
     let direction = 0;
-    if (this.keys.left.isDown || this.keys.a.isDown) direction -= 1;
-    if (this.keys.right.isDown || this.keys.d.isDown) direction += 1;
+    if (
+      this.keys.left.isDown ||
+      this.keys.a.isDown ||
+      this.touchDirections.left
+    )
+      direction -= 1;
+    if (
+      this.keys.right.isDown ||
+      this.keys.d.isDown ||
+      this.touchDirections.right
+    )
+      direction += 1;
     this.breaker.paddleX = Phaser.Math.Clamp(
       this.breaker.paddleX + direction * 430 * delta,
       20,
       WIDTH - 144,
     );
+    if (this.input.activePointer.isDown) {
+      this.breaker.paddleX = Phaser.Math.Clamp(
+        this.input.activePointer.x - 72,
+        20,
+        WIDTH - 144,
+      );
+    }
     const ball = this.breaker.ball;
     const velocity = this.breaker.velocity;
     ball.x += velocity.x * delta;
@@ -597,7 +705,10 @@ class MatrixScene extends Phaser.Scene {
 
   private separateTapTargets(): void {
     let attempts = 0;
-    while (this.distance(this.tap.target, this.tap.decoy) < 170 && attempts < 20) {
+    while (
+      this.distance(this.tap.target, this.tap.decoy) < 170 &&
+      attempts < 20
+    ) {
       this.tap.decoy = this.randomArenaPoint(76);
       attempts += 1;
     }
@@ -723,18 +834,7 @@ class MatrixScene extends Phaser.Scene {
       this.orbit.spawnClock = 0;
       this.orbit.enemies.push(this.spawnEnemy());
     }
-    if (
-      Phaser.Input.Keyboard.JustDown(this.keys.space) &&
-      this.orbit.pulseCooldown <= 0
-    ) {
-      this.orbit.pulseCooldown = 0.58;
-      this.pulseFlash = 0.16;
-      const before = this.orbit.enemies.length;
-      this.orbit.enemies = this.orbit.enemies.filter(
-        (enemy) => this.distance(enemy, this.orbit.player) > 118,
-      );
-      this.orbit.cleared += before - this.orbit.enemies.length;
-    }
+    if (Phaser.Input.Keyboard.JustDown(this.keys.space)) this.pulseOrbit();
 
     for (const enemy of this.orbit.enemies) {
       const dx = this.orbit.player.x - enemy.x;
@@ -747,32 +847,38 @@ class MatrixScene extends Phaser.Scene {
     if (this.elapsed >= 30) this.finish(true);
   }
 
+  private pulseOrbit(): void {
+    if (this.mode !== 5 || this.ended || this.orbit.pulseCooldown > 0) return;
+    this.orbit.pulseCooldown = 0.58;
+    this.pulseFlash = 0.16;
+    const before = this.orbit.enemies.length;
+    this.orbit.enemies = this.orbit.enemies.filter(
+      (enemy) => this.distance(enemy, this.orbit.player) > 118,
+    );
+    this.orbit.cleared += before - this.orbit.enemies.length;
+  }
+
   private updateSnake(delta: number): void {
-    const current = this.snake.direction;
     if (
-      (Phaser.Input.Keyboard.JustDown(this.keys.up) ||
-        Phaser.Input.Keyboard.JustDown(this.keys.w)) &&
-      current.y === 0
+      Phaser.Input.Keyboard.JustDown(this.keys.up) ||
+      Phaser.Input.Keyboard.JustDown(this.keys.w)
     ) {
-      this.snake.nextDirection = { x: 0, y: -1 };
+      this.turnSnake({ x: 0, y: -1 });
     } else if (
-      (Phaser.Input.Keyboard.JustDown(this.keys.down) ||
-        Phaser.Input.Keyboard.JustDown(this.keys.s)) &&
-      current.y === 0
+      Phaser.Input.Keyboard.JustDown(this.keys.down) ||
+      Phaser.Input.Keyboard.JustDown(this.keys.s)
     ) {
-      this.snake.nextDirection = { x: 0, y: 1 };
+      this.turnSnake({ x: 0, y: 1 });
     } else if (
-      (Phaser.Input.Keyboard.JustDown(this.keys.left) ||
-        Phaser.Input.Keyboard.JustDown(this.keys.a)) &&
-      current.x === 0
+      Phaser.Input.Keyboard.JustDown(this.keys.left) ||
+      Phaser.Input.Keyboard.JustDown(this.keys.a)
     ) {
-      this.snake.nextDirection = { x: -1, y: 0 };
+      this.turnSnake({ x: -1, y: 0 });
     } else if (
-      (Phaser.Input.Keyboard.JustDown(this.keys.right) ||
-        Phaser.Input.Keyboard.JustDown(this.keys.d)) &&
-      current.x === 0
+      Phaser.Input.Keyboard.JustDown(this.keys.right) ||
+      Phaser.Input.Keyboard.JustDown(this.keys.d)
     ) {
-      this.snake.nextDirection = { x: 1, y: 0 };
+      this.turnSnake({ x: 1, y: 0 });
     }
     this.snake.stepClock += delta;
     const interval = this.snake.score >= 8 ? 0.095 : 0.125;
@@ -783,16 +889,14 @@ class MatrixScene extends Phaser.Scene {
       x: this.snake.parts[0].x + this.snake.direction.x,
       y: this.snake.parts[0].y + this.snake.direction.y,
     };
-    const willEat = head.x === this.snake.food.x && head.y === this.snake.food.y;
-    const collisionBody = willEat
-      ? this.snake.parts
-      : this.snake.parts.slice(0, -1);
+    const willEat =
+      head.x === this.snake.food.x && head.y === this.snake.food.y;
     if (
       head.x < 0 ||
       head.x >= 25 ||
       head.y < 0 ||
       head.y >= 16 ||
-      collisionBody.some((part) => part.x === head.x && part.y === head.y)
+      snakeHitsBody(head, this.snake.parts, willEat)
     ) {
       this.finish(false);
       return;
@@ -805,6 +909,12 @@ class MatrixScene extends Phaser.Scene {
     } else {
       this.snake.parts.pop();
     }
+  }
+
+  private turnSnake(direction: Point): void {
+    const current = this.snake.direction;
+    if (current.x * direction.x + current.y * direction.y !== 0) return;
+    this.snake.nextDirection = direction;
   }
 
   private placeSnakeFood(): void {
@@ -820,6 +930,152 @@ class MatrixScene extends Phaser.Scene {
       )
     );
     this.snake.food = candidate;
+  }
+
+  private bindDomControls(): void {
+    const directionButtons =
+      document.querySelectorAll<HTMLButtonElement>("[data-direction]");
+    for (const button of directionButtons) {
+      const direction = button.dataset.direction as DirectionControl;
+      const release = () => {
+        this.touchDirections[direction] = false;
+      };
+      button.addEventListener("pointerdown", (event) => {
+        event.preventDefault();
+        button.setPointerCapture(event.pointerId);
+        this.handleDirectionControl(direction);
+      });
+      button.addEventListener("pointerup", release);
+      button.addEventListener("pointercancel", release);
+      button.addEventListener("lostpointercapture", release);
+      button.addEventListener("click", (event) => {
+        // Pointer input is handled on pointerdown so held movement works.
+        if (event.detail === 0) this.handleDirectionControl(direction, true);
+      });
+    }
+
+    document
+      .querySelector<HTMLButtonElement>("[data-action]")
+      ?.addEventListener("click", () => this.handleActionControl());
+    document
+      .querySelector<HTMLButtonElement>("[data-menu]")
+      ?.addEventListener("click", () => this.showMenu());
+
+    const gameRoot = document.querySelector<HTMLElement>("#game");
+    gameRoot?.addEventListener("pointerdown", () => gameRoot.focus());
+    this.game.canvas.setAttribute("aria-hidden", "true");
+  }
+
+  private handleDirectionControl(
+    direction: DirectionControl,
+    keyboardActivation = false,
+  ): void {
+    if (this.mode < 0) {
+      const offset = direction === "up" || direction === "left" ? -1 : 1;
+      this.selected = (this.selected + offset + GAMES.length) % GAMES.length;
+      this.drawMenu();
+      return;
+    }
+    if (this.mode === 6) {
+      const directions: Record<DirectionControl, Point> = {
+        up: { x: 0, y: -1 },
+        down: { x: 0, y: 1 },
+        left: { x: -1, y: 0 },
+        right: { x: 1, y: 0 },
+      };
+      this.turnSnake(directions[direction]);
+      return;
+    }
+    this.touchDirections[direction] = true;
+    if (keyboardActivation) {
+      window.setTimeout(() => {
+        this.touchDirections[direction] = false;
+      }, 160);
+    }
+  }
+
+  private handleActionControl(): void {
+    if (this.mode < 0) {
+      this.startGame(this.selected);
+    } else if (this.ended) {
+      this.startGame(this.mode);
+    } else if (this.mode === 3) {
+      this.flapBird();
+    } else if (this.mode === 4) {
+      this.jump();
+    } else if (this.mode === 5) {
+      this.pulseOrbit();
+    }
+  }
+
+  private resetTouchDirections(): void {
+    this.touchDirections = {
+      up: false,
+      down: false,
+      left: false,
+      right: false,
+    };
+  }
+
+  private updateDomControls(): void {
+    const action = document.querySelector<HTMLButtonElement>("[data-action]");
+    const menu = document.querySelector<HTMLButtonElement>("[data-menu]");
+    const directionButtons =
+      document.querySelectorAll<HTMLButtonElement>("[data-direction]");
+    const directionModes = new Set([-1, 0, 1, 5, 6]);
+    const enabledDirections =
+      this.mode === 1 ? new Set(["left", "right"]) : null;
+
+    for (const button of directionButtons) {
+      button.hidden = !directionModes.has(this.mode);
+      button.disabled =
+        enabledDirections !== null &&
+        !enabledDirections.has(button.dataset.direction ?? "");
+    }
+    if (action) {
+      action.hidden = !(
+        this.mode < 0 ||
+        this.ended ||
+        this.mode === 3 ||
+        this.mode === 4 ||
+        this.mode === 5
+      );
+      action.textContent =
+        this.mode < 0
+          ? "START"
+          : this.ended
+            ? "REPLAY"
+            : this.mode === 5
+              ? "PULSE"
+              : "ACTION";
+    }
+    if (menu) menu.hidden = this.mode < 0;
+  }
+
+  private announce(message: string): void {
+    const status = document.querySelector<HTMLElement>("#game-status");
+    if (status) status.textContent = message;
+  }
+
+  private publishRuntimeState(): void {
+    const title = this.mode < 0 ? "MENU" : GAMES[this.mode].title;
+    (window as RuntimeWindow).__KOFUN_RUNTIME__ = {
+      frame: this.frame,
+      mode: this.mode,
+      title,
+      ended: this.ended,
+    };
+    const gameRoot = document.querySelector<HTMLElement>("#game");
+    if (gameRoot) {
+      gameRoot.dataset.activeGame = String(this.mode + 1);
+      gameRoot.dataset.runtimeFrame = String(this.frame);
+      gameRoot.dataset.runtimeTitle = title;
+      gameRoot.dataset.runtimeEnded = String(this.ended);
+      gameRoot.setAttribute(
+        "aria-label",
+        this.mode < 0 ? "Kofun Game Matrix menu" : `${title} play area`,
+      );
+    }
   }
 
   private drawGame(): void {
@@ -919,7 +1175,13 @@ class MatrixScene extends Phaser.Scene {
   private drawFlap(): void {
     for (const gate of this.flap.gates) {
       this.graphics.fillStyle(0x8b5cf6, 0.88);
-      this.graphics.fillRoundedRect(gate.x - 30, TOP, 60, gate.gapY - 82 - TOP, 8);
+      this.graphics.fillRoundedRect(
+        gate.x - 30,
+        TOP,
+        60,
+        gate.gapY - 82 - TOP,
+        8,
+      );
       this.graphics.fillRoundedRect(
         gate.x - 30,
         gate.gapY + 82,
@@ -1006,15 +1268,29 @@ class MatrixScene extends Phaser.Scene {
 
   private drawGrid(alpha: number): void {
     this.graphics.lineStyle(1, 0x8b5cf6, alpha);
-    for (let x = 0; x <= WIDTH; x += 40) this.graphics.lineBetween(x, 0, x, HEIGHT);
-    for (let y = 0; y <= HEIGHT; y += 40) this.graphics.lineBetween(0, y, WIDTH, y);
+    for (let x = 0; x <= WIDTH; x += 40)
+      this.graphics.lineBetween(x, 0, x, HEIGHT);
+    for (let y = 0; y <= HEIGHT; y += 40)
+      this.graphics.lineBetween(0, y, WIDTH, y);
   }
 
   private drawArenaBorder(): void {
     this.graphics.fillStyle(0x110a25, 0.55);
-    this.graphics.fillRoundedRect(20, TOP + 15, WIDTH - 40, BOTTOM - TOP - 30, 16);
+    this.graphics.fillRoundedRect(
+      20,
+      TOP + 15,
+      WIDTH - 40,
+      BOTTOM - TOP - 30,
+      16,
+    );
     this.graphics.lineStyle(2, 0xa78bfa, 0.55);
-    this.graphics.strokeRoundedRect(20, TOP + 15, WIDTH - 40, BOTTOM - TOP - 30, 16);
+    this.graphics.strokeRoundedRect(
+      20,
+      TOP + 15,
+      WIDTH - 40,
+      BOTTOM - TOP - 30,
+      16,
+    );
   }
 
   private drawKofun(x: number, y: number, radius: number): void {
@@ -1023,10 +1299,24 @@ class MatrixScene extends Phaser.Scene {
     this.graphics.fillStyle(0xc08457, 1);
     this.graphics.fillCircle(x, y - radius * 0.18, radius * 0.72);
     this.graphics.fillStyle(0x1f1726, 1);
-    this.graphics.fillCircle(x - radius * 0.28, y - radius * 0.2, radius * 0.09);
-    this.graphics.fillCircle(x + radius * 0.28, y - radius * 0.2, radius * 0.09);
+    this.graphics.fillCircle(
+      x - radius * 0.28,
+      y - radius * 0.2,
+      radius * 0.09,
+    );
+    this.graphics.fillCircle(
+      x + radius * 0.28,
+      y - radius * 0.2,
+      radius * 0.09,
+    );
     this.graphics.lineStyle(2, 0x1f1726, 1);
-    this.graphics.arc(x, y + radius * 0.02, radius * 0.28, 0.15, Math.PI - 0.15);
+    this.graphics.arc(
+      x,
+      y + radius * 0.02,
+      radius * 0.28,
+      0.15,
+      Math.PI - 0.15,
+    );
   }
 
   private drawDochicken(x: number, y: number, radius: number): void {
@@ -1042,9 +1332,17 @@ class MatrixScene extends Phaser.Scene {
       y + 9,
     );
     this.graphics.fillStyle(0x111827, 1);
-    this.graphics.fillCircle(x + radius * 0.25, y - radius * 0.25, radius * 0.09);
+    this.graphics.fillCircle(
+      x + radius * 0.25,
+      y - radius * 0.25,
+      radius * 0.09,
+    );
     this.graphics.fillStyle(0xef4444, 1);
-    this.graphics.fillCircle(x - radius * 0.15, y - radius * 0.88, radius * 0.22);
+    this.graphics.fillCircle(
+      x - radius * 0.15,
+      y - radius * 0.88,
+      radius * 0.22,
+    );
   }
 
   private drawHaniwa(x: number, y: number, radius: number): void {
@@ -1057,9 +1355,22 @@ class MatrixScene extends Phaser.Scene {
       radius * 0.4,
     );
     this.graphics.fillStyle(0x4b2e2a, 1);
-    this.graphics.fillCircle(x - radius * 0.23, y - radius * 0.28, radius * 0.1);
-    this.graphics.fillCircle(x + radius * 0.23, y - radius * 0.28, radius * 0.1);
-    this.graphics.fillRect(x - radius * 0.13, y + radius * 0.05, radius * 0.26, 3);
+    this.graphics.fillCircle(
+      x - radius * 0.23,
+      y - radius * 0.28,
+      radius * 0.1,
+    );
+    this.graphics.fillCircle(
+      x + radius * 0.23,
+      y - radius * 0.28,
+      radius * 0.1,
+    );
+    this.graphics.fillRect(
+      x - radius * 0.13,
+      y + radius * 0.05,
+      radius * 0.26,
+      3,
+    );
   }
 
   private randomArenaPoint(margin = 45): Point {
