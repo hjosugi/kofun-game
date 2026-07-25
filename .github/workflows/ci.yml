@@ -34,7 +34,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build pkg-config libasound2-dev \
             libgl1-mesa-dev libx11-dev libxcursor-dev libxi-dev \
-            libxinerama-dev libxrandr-dev libxkbcommon-dev libxxf86vm-dev
+            libxinerama-dev libxrandr-dev libxkbcommon-dev libxxf86vm-dev \
+            xauth xvfb
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy, rustfmt
@@ -44,7 +45,10 @@ jobs:
           cache-dependency-path: engines/ebitengine-go/go.sum
       - run: cargo fmt --check && cargo check && cargo test && cargo clippy -- -D warnings
         working-directory: engines/macroquad-rust
-      - run: test -z "$(gofmt -l .)" && go test ./... && go vet ./... && go test -race ./...
+      - run: |
+          test -z "$(gofmt -l .)"
+          xvfb-run -a bash -c \
+            'go test ./... && go vet ./... && go test -race ./...'
         working-directory: engines/ebitengine-go
       - run: cmake -S . -B build -G Ninja -DKOFUN_FETCH_RAYLIB=ON
         working-directory: engines/raylib-c
