@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 共通ゲーム仕様
+    url: https://github.com/hjosugi/kofun-game/blob/main/docs/game-spec.md
+    about: ゲームルールと共通UIを確認してから報告してください。
+  - name: 調査サイトとブラウザ版
+    url: https://hjosugi.github.io/kofun-game/
+    about: エンジン比較とPhaser版の動作を確認できます。

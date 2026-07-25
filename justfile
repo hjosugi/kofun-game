@@ -9,17 +9,21 @@ check-structure:
     python3 -m unittest discover -s tests -v
 
 check-phaser:
-    cd engines/phaser-typescript && npm ci && npm run build
+    cd engines/phaser-typescript && npm ci && npm test && npm run build
+
+check-phaser-browser:
+    cd engines/phaser-typescript && python3 tests/browser_smoke.py
 
 check-lua:
     find engines/love2d-lua engines/defold-lua -type f \( -name '*.lua' -o -name '*.script' -o -name '*.gui_script' \) -print0 | xargs -0 -n1 luac -p
+    cd engines/love2d-lua && lua tests/rules_test.lua
 
 check-rust:
-    cd engines/macroquad-rust && export CARGO_TARGET_DIR="$PWD/target" && cargo fmt --check && cargo check && cargo test && cargo clippy -- -D warnings
+    cd engines/macroquad-rust && export CARGO_TARGET_DIR="$PWD/target" && cargo fmt --check && cargo check --locked && cargo test --locked && cargo clippy --locked -- -D warnings
 
 check-go:
     test -z "$(gofmt -l engines/ebitengine-go)"
-    cd engines/ebitengine-go && go test ./... && go vet ./... && go test -race ./...
+    cd engines/ebitengine-go && go mod verify && go test ./... && go vet ./... && go test -race ./...
 
 check-godot:
     godot --headless --path engines/godot-gdscript --script res://tests/smoke_test.gd
@@ -31,6 +35,7 @@ check-defold:
 build-raylib:
     cmake -S engines/raylib-c -B engines/raylib-c/build
     cmake --build engines/raylib-c/build
+    ctest --test-dir engines/raylib-c/build --output-on-failure
 
 play-phaser:
     cd engines/phaser-typescript && npm run dev

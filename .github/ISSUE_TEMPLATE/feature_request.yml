@@ -1,0 +1,122 @@
+name: 改善・機能提案
+description: ゲーム、比較研究、開発環境、ドキュメントへの改善を提案する
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提案ありがとうございます。このリポジトリでは、7エンジン間の公平な比較と、
+        低スペック環境でも遊べる品質の両立を重視しています。
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 提案の対象
+      options:
+        - ゲームルール・操作
+        - 表示・UI・アクセシビリティ
+        - 性能・低スペック対応
+        - 新しいエンジン・言語
+        - ビルド・Nix・CI
+        - GitHub Pages・調査内容
+        - テスト・品質保証
+        - ドキュメント
+        - その他
+    validations:
+      required: true
+
+  - type: dropdown
+    id: engines
+    attributes:
+      label: 関係するエンジン
+      description: 複数選択できます。
+      multiple: true
+      options:
+        - Godot 4 + GDScript
+        - raylib 6 + C11
+        - Defold + Lua
+        - LÖVE 11 + Lua
+        - Phaser 3.90 + TypeScript
+        - Macroquad + Rust
+        - Ebitengine 2.9 + Go
+        - 全エンジン・共通
+        - 該当なし・未定
+    validations:
+      required: true
+
+  - type: dropdown
+    id: games
+    attributes:
+      label: 関係するゲーム
+      description: 複数選択できます。
+      multiple: true
+      options:
+        - Kofun Courier
+        - Mound Breaker
+        - Haniwa Tap Patrol
+        - Dochicken Sky Dodge
+        - Neon Kofun Dash
+        - Kofun Orbit
+        - Kofun Snake
+        - メニュー・共通UI
+        - 全ゲーム・共通
+        - 該当なし・未定
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 解決したい問題
+      description: 現状どのような利用者・状況で困るのかを記載してください。
+      placeholder: 現在は…のため、…する利用者が…できません。
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 提案する変更
+      description: 操作、見た目、ルール、APIなど、期待する形を具体的に記載してください。
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 完了条件
+      description: 実装後に確認できる振る舞いを箇条書きで記載してください。
+      placeholder: |
+        - 7実装で同じ操作ができる
+        - 960×540でHUDが重ならない
+        - `just check`が成功する
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 代替案
+      description: 検討した別案や、採用しなかった理由があれば記載してください。
+    validations:
+      required: false
+
+  - type: textarea
+    id: references
+    attributes:
+      label: 参考資料
+      description: mockup、動画、仕様、関連issueなどがあれば添付してください。
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: 比較プロジェクトとしての確認
+      options:
+        - label: 共通ルールを変える場合、7エンジンへ与える影響を記載しました。
+          required: false
+        - label: 低スペック環境への影響を検討しました。
+          required: false

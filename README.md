@@ -1,5 +1,8 @@
 # Kofun Game Matrix
 
+[![CI](https://github.com/hjosugi/kofun-game/actions/workflows/ci.yml/badge.svg)](https://github.com/hjosugi/kofun-game/actions/workflows/ci.yml)
+[![GitHub Pages](https://github.com/hjosugi/kofun-game/actions/workflows/pages.yml/badge.svg)](https://hjosugi.github.io/kofun-game/)
+
 7つの小さなゲームを7つの軽量ゲームエンジンへ同じ仕様で実装し、
 開発体験・実行性能・配布方法の違いを比較する実験リポジトリです。
 
@@ -56,6 +59,13 @@ cd engines/phaser-typescript
 npm ci
 npm run dev
 ```
+
+## Issueと改善
+
+- 不具合: [構造化バグ報告](https://github.com/hjosugi/kofun-game/issues/new?template=bug_report.yml)
+- 改善案: [機能提案](https://github.com/hjosugi/kofun-game/issues/new?template=feature_request.yml)
+- 開発手順: [CONTRIBUTING.md](CONTRIBUTING.md)
+- 完了条件・手動QA: [品質基準](docs/quality.md)
 
 ## 出典とライセンス
 

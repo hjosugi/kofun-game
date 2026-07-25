@@ -1,0 +1,201 @@
+name: バグ報告
+description: ゲームの不具合、クラッシュ、描画・入力・ビルドの問題を報告する
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        報告ありがとうございます。同じゲームを7エンジンで比較できるよう、
+        発生した組み合わせと実行環境をできるだけ具体的に記入してください。
+
+  - type: dropdown
+    id: engine
+    attributes:
+      label: エンジン
+      description: 問題が発生した実装を選んでください。
+      options:
+        - Godot 4 + GDScript
+        - raylib 6 + C11
+        - Defold + Lua
+        - LÖVE 11 + Lua
+        - Phaser 3.90 + TypeScript
+        - Macroquad + Rust
+        - Ebitengine 2.9 + Go
+        - 共通仕様・複数エンジン
+        - 不明
+    validations:
+      required: true
+
+  - type: dropdown
+    id: game
+    attributes:
+      label: ゲーム
+      description: 問題が発生したゲームを選んでください。
+      options:
+        - Kofun Courier
+        - Mound Breaker
+        - Haniwa Tap Patrol
+        - Dochicken Sky Dodge
+        - Neon Kofun Dash
+        - Kofun Orbit
+        - Kofun Snake
+        - メニュー・共通UI
+        - ビルド・開発環境
+        - 調査サイト・ドキュメント
+        - 複数・不明
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: OS
+      options:
+        - Linux
+        - Windows
+        - macOS
+        - ChromeOS
+        - Android
+        - iOS / iPadOS
+        - WSL
+        - その他
+    validations:
+      required: true
+
+  - type: input
+    id: os_version
+    attributes:
+      label: OSバージョン
+      description: ディストリビューションやブラウザを含めて記載してください。
+      placeholder: "例: Ubuntu 24.04 / Chrome 138、Windows 11 24H2"
+    validations:
+      required: true
+
+  - type: input
+    id: engine_version
+    attributes:
+      label: エンジン・ツールのバージョン
+      description: わかる範囲で実行環境のバージョンを記載してください。
+      placeholder: "例: LÖVE 11.5、Godot 4.7.1、Go 1.26"
+    validations:
+      required: false
+
+  - type: input
+    id: gpu
+    attributes:
+      label: GPUとドライバー
+      description: 描画問題では特に重要です。不明な場合は「不明」と記載してください。
+      placeholder: "例: Intel UHD 620 / Mesa 26.1.4、llvmpipe、不明"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: renderer
+    attributes:
+      label: 描画方式
+      description: 使用中のrendererがわかれば選んでください。
+      options:
+        - 通常起動（自動選択）
+        - OpenGL / Compatibility
+        - Canvas（Phaser）
+        - software renderer / llvmpipe
+        - nixGL
+        - headless / CI
+        - 不明・該当なし
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install_method
+    attributes:
+      label: 起動・導入方法
+      options:
+        - Nix開発環境
+        - 公式Editor・SDK
+        - OSのpackage manager
+        - GitHub Pages
+        - ローカルWeb開発サーバー
+        - GitHub Actions
+        - その他
+    validations:
+      required: true
+
+  - type: input
+    id: revision
+    attributes:
+      label: 対象revision
+      description: commit SHA、branch、公開ページのURLなどを記載してください。
+      placeholder: "例: main @ abc1234 / https://hjosugi.github.io/kofun-game/play/"
+    validations:
+      required: false
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現手順
+      description: 初期状態から問題が起きるまでを番号付きで記載してください。
+      placeholder: |
+        1. `nix develop`を実行する
+        2. `just play-love`を実行する
+        3. メニューで「Kofun Orbit」を選ぶ
+        4. Spaceを押すと…
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待する動作
+      placeholder: 何が起きるべきだったかを記載してください。
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 実際の動作
+      placeholder: エラーメッセージ、頻度、ゲーム状態の変化を記載してください。
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: ログ
+      description: terminal出力は貼り付け前にtoken、ユーザー名、個人情報を除いてください。
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: スクリーンショット・動画
+      description: 描画や動作の問題がわかる画像・動画をドラッグ＆ドロップしてください。
+    validations:
+      required: false
+
+  - type: dropdown
+    id: reproducibility
+    attributes:
+      label: 再現頻度
+      options:
+        - 毎回
+        - 高頻度
+        - ときどき
+        - 1回だけ
+        - 未確認
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 事前確認
+      options:
+        - label: 既存issueに同じ報告がないことを確認しました。
+          required: true
+        - label: 可能な範囲で最新のmain、または最新の公開版でも確認しました。
+          required: false
