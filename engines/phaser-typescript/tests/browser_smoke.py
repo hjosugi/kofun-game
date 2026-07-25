@@ -97,16 +97,41 @@ def wait_for_url(url: str, timeout: float = 10) -> None:
     raise RuntimeError(f"Preview server did not become ready: {url}")
 
 
-def wait_for_marionette(port: int, timeout: float = 10) -> Marionette:
+def browser_diagnostics(process: subprocess.Popen[bytes], log_path: Path) -> str:
+    status = process.poll()
+    try:
+        log = log_path.read_text(encoding="utf-8", errors="replace").strip()
+    except OSError:
+        log = ""
+    details = f"Firefox status: {status if status is not None else 'running'}"
+    if log:
+        details += f"\nFirefox output:\n{log[-4000:]}"
+    return details
+
+
+def wait_for_marionette(
+    port: int,
+    process: subprocess.Popen[bytes],
+    log_path: Path,
+    timeout: float = 30,
+) -> Marionette:
     deadline = time.monotonic() + timeout
     last_error: OSError | None = None
     while time.monotonic() < deadline:
+        if process.poll() is not None:
+            raise RuntimeError(
+                "Firefox exited before Marionette became ready\n"
+                + browser_diagnostics(process, log_path)
+            )
         try:
             return Marionette(port)
         except OSError as error:
             last_error = error
             time.sleep(0.1)
-    raise RuntimeError("Firefox Marionette did not become ready") from last_error
+    raise RuntimeError(
+        "Firefox Marionette did not become ready within "
+        f"{timeout:.0f} seconds\n{browser_diagnostics(process, log_path)}"
+    ) from last_error
 
 
 def terminate(process: subprocess.Popen[bytes]) -> None:
@@ -144,6 +169,7 @@ def main() -> None:
         stderr=subprocess.DEVNULL,
     )
     browser: subprocess.Popen[bytes] | None = None
+    browser_output = None
     client: Marionette | None = None
     try:
         wait_for_url(base_url)
@@ -151,6 +177,8 @@ def main() -> None:
             Path(profile, "user.js").write_text(
                 f'user_pref("marionette.port", {marionette_port});\n'
             )
+            browser_log = Path(profile, "firefox.log")
+            browser_output = browser_log.open("wb")
             browser = subprocess.Popen(
                 [
                     firefox,
@@ -160,10 +188,13 @@ def main() -> None:
                     profile,
                     "about:blank",
                 ],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stdout=browser_output,
+                stderr=subprocess.STDOUT,
+                env={**os.environ, "MOZ_HEADLESS": "1"},
             )
-            client = wait_for_marionette(marionette_port)
+            client = wait_for_marionette(
+                marionette_port, browser, browser_log
+            )
             client.request(
                 "WebDriver:NewSession",
                 {"capabilities": {"alwaysMatch": {}}},
@@ -231,6 +262,8 @@ def main() -> None:
                 pass
         if browser:
             terminate(browser)
+        if browser_output:
+            browser_output.close()
         terminate(server)
 
 
