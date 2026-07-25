@@ -79,7 +79,11 @@ jobs:
         with:
           go-version: "1.26"
           cache-dependency-path: engines/ebitengine-go/go.sum
-      - run: sudo apt-get update && sudo apt-get install -y xauth xvfb
+      - name: Native libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-dev libx11-dev libxcursor-dev \
+            libxi-dev libxinerama-dev libxrandr-dev libxxf86vm-dev xauth xvfb
       - run: test -z "$(gofmt -l .)"
       - run: go mod verify
       - run: xvfb-run -a go test ./...
