@@ -12,16 +12,24 @@ import tempfile
 import time
 import urllib.request
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+# Marionette answers WebDriver:Navigate only after the page has loaded, and a cold
+# CI runner can need well over 5 seconds for the first Phaser page. Each command
+# gets its own budget instead of one short socket timeout; a command that is
+# still unanswered after it fails with the browser's output.
+COMMAND_TIMEOUT = 30.0
+NAVIGATE_TIMEOUT = 90.0
 
 
 class Marionette:
     def __init__(self, port: int) -> None:
         self.socket = socket.create_connection(("127.0.0.1", port), timeout=5)
         self.next_id = 1
+        self.diagnostics: Callable[[], str] | None = None
         greeting = self._receive()
         if greeting.get("marionetteProtocol") != 3:
             raise RuntimeError(f"Unexpected Marionette greeting: {greeting}")
@@ -44,14 +52,27 @@ class Marionette:
             payload.extend(chunk)
         return json.loads(payload)
 
-    def request(self, method: str, params: dict[str, Any]) -> Any:
+    def request(
+        self,
+        method: str,
+        params: dict[str, Any],
+        timeout: float = COMMAND_TIMEOUT,
+    ) -> Any:
         request_id = self.next_id
         self.next_id += 1
         message = json.dumps(
             [0, request_id, method, params], separators=(",", ":")
         ).encode()
-        self.socket.sendall(str(len(message)).encode() + b":" + message)
-        response = self._receive()
+        self.socket.settimeout(timeout)
+        try:
+            self.socket.sendall(str(len(message)).encode() + b":" + message)
+            response = self._receive()
+        except TimeoutError as error:
+            details = f"\n{self.diagnostics()}" if self.diagnostics else ""
+            raise RuntimeError(
+                f"Marionette did not answer {method} within {timeout:.0f} "
+                f"seconds{details}"
+            ) from error
         if response[1] != request_id:
             raise RuntimeError(f"Marionette response id mismatch: {response}")
         if response[2]:
@@ -74,7 +95,7 @@ class Marionette:
 
     def close(self) -> None:
         try:
-            self.request("WebDriver:DeleteSession", {})
+            self.request("WebDriver:DeleteSession", {}, timeout=5)
         finally:
             self.socket.close()
 
@@ -195,6 +216,9 @@ def main() -> None:
             client = wait_for_marionette(
                 marionette_port, browser, browser_log
             )
+            client.diagnostics = lambda: browser_diagnostics(
+                browser, browser_log
+            )
             client.request(
                 "WebDriver:NewSession",
                 {"capabilities": {"alwaysMatch": {}}},
@@ -204,6 +228,7 @@ def main() -> None:
                 client.request(
                     "WebDriver:Navigate",
                     {"url": f"{base_url}?game={game_number}"},
+                    timeout=NAVIGATE_TIMEOUT,
                 )
                 deadline = time.monotonic() + 8
                 snapshot = None
